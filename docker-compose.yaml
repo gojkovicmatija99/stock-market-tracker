@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: stock-marker-tracker-mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - stock-marker-tracker
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: stock-marker-tracker-postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - stock-marker-tracker
+
+  keycloak:
+    image: bitnami/keycloak:latest
+    container_name: stock-marker-tracker-keycloak
+    environment:
+      KEYCLOAK_DATABASE_HOST: stock-marker-tracker-postgres
+      KEYCLOAK_DATABASE_NAME: postgres
+      KEYCLOAK_DATABASE_USER: root
+      KEYCLOAK_DATABASE_PASSWORD: secret
+    ports:
+      - "8080:8080"
+    networks:
+      - stock-marker-tracker
+    depends_on:
+      - postgres
+
+networks:
+  stock-marker-tracker:
+    driver: bridge
+
+volumes:
+  postgres:
