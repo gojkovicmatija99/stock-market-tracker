@@ -16,7 +16,7 @@ import reactor.core.publisher.Mono;
 import java.security.InvalidParameterException;
 import java.util.List;
 
-@RestController
+@RestController("/market")
 public class StockController {
 
     @Resource

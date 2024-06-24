@@ -22,6 +22,7 @@ services:
     networks:
       - stock-marker-tracker
 
+  # TODO: create realm, user and roles with docker
   keycloak:
     image: bitnami/keycloak:latest
     container_name: stock-marker-tracker-keycloak
@@ -30,6 +31,8 @@ services:
       KEYCLOAK_DATABASE_NAME: postgres
       KEYCLOAK_DATABASE_USER: root
       KEYCLOAK_DATABASE_PASSWORD: secret
+      KEYCLOAK_ADMIN: user
+      KEYCLOAK_ADMIN_PASSWORD: bitnami
     ports:
       - "8080:8080"
     networks:
