@@ -23,20 +23,38 @@ services:
       - stock-marker-tracker
 
   # TODO: create realm, user and roles with docker
+#  keycloak:
+#    image: keycloak/keycloak:17.0.0
+#    container_name: stock-marker-tracker-keycloak
+#    environment:
+#      KEYCLOAK_DATABASE_HOST: stock-marker-tracker-postgres
+#      KEYCLOAK_DATABASE_NAME: postgres
+#      KEYCLOAK_DATABASE_USER: root
+#      KEYCLOAK_DATABASE_PASSWORD: secret
+#      KEYCLOAK_ADMIN: admin
+#      KEYCLOAK_ADMIN_PASSWORD: password
+#    ports:
+#      - "8080:8080"
+#    networks:
+#      - stock-marker-tracker
+#    depends_on:
+#      - postgres
   keycloak:
-    image: bitnami/keycloak:latest
     container_name: stock-marker-tracker-keycloak
+    image: quay.io/keycloak/keycloak:23.0.4
+    command:
+      - start-dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${HOME}/docker_volumes/keycloak:/opt/keycloak/data
     environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
       KEYCLOAK_DATABASE_HOST: stock-marker-tracker-postgres
       KEYCLOAK_DATABASE_NAME: postgres
       KEYCLOAK_DATABASE_USER: root
       KEYCLOAK_DATABASE_PASSWORD: secret
-      KEYCLOAK_ADMIN: user
-      KEYCLOAK_ADMIN_PASSWORD: bitnami
-    ports:
-      - "8080:8080"
-    networks:
-      - stock-marker-tracker
     depends_on:
       - postgres
 

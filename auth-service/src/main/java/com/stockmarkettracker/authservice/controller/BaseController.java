@@ -12,12 +12,17 @@ import java.security.InvalidParameterException;
 public class BaseController {
 
     @ExceptionHandler(InvalidParameterException.class)
-    public ResponseEntity<String> responseInvalidParameterException(Exception e) {
+    public ResponseEntity<String> handleInvalidParameterException(Exception e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid parameter: " + e.getMessage());
     }
 
     @ExceptionHandler(UserAlreadyExistAuthenticationException.class)
-    public ResponseEntity<String> responseUserAlreadyExistAuthenticationException(Exception e) {
+    public ResponseEntity<String> handleUserAlreadyExistAuthenticationException(Exception e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGenericException(Exception e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
     }
 }

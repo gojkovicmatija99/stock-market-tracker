@@ -1,21 +1,16 @@
 package com.stockmarkettracker.authservice.domain;
 
-import lombok.Builder;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import org.springframework.data.annotation.Id;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
-@Builder
-@Document(collection = "users")
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
-
-    @Id
-    private String id;
+    private String email;
     private String username;
     private String password;
-    private GrantedAuthority authority;
 }
