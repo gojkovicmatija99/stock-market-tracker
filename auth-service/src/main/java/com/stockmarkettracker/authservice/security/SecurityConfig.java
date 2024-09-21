@@ -1,5 +1,6 @@
 package com.stockmarkettracker.authservice.security;
 
+import com.stockmarkettracker.authservice.domain.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,23 +14,16 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    public static final String ADMIN = "admin";
-    public static final String USER = "user";
     private final JwtConverter jwtConverter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/register/**")) // Disable CSRF for /api/register
+                        .ignoringRequestMatchers("/auth/**"))
                 .authorizeHttpRequests((authz) ->
                         authz
-                                .requestMatchers(HttpMethod.GET, "/api/hello").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/admin/**").hasRole(ADMIN)
-                                .requestMatchers(HttpMethod.GET, "/api/user/**").hasRole(USER)
-                                .requestMatchers(HttpMethod.GET, "/api/admin-and-user/**").hasAnyRole(ADMIN, USER)
-                                .requestMatchers(HttpMethod.POST, "/api/register/**").permitAll() // Allow public access to registration
+                                .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
                                 .anyRequest().authenticated()
                 );
 

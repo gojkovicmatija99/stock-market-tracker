@@ -8,16 +8,19 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/auth")
 public class AuthController extends BaseController {
 
     @Resource
     private KeycloakService keycloakService;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody User userRequest) {
-        keycloakService.registerUser(userRequest.getUsername(), userRequest.getPassword(), userRequest.getEmail());
-        return ResponseEntity.ok("User registered successfully");
+    public String register(@RequestBody User userRequest) {
+        return keycloakService.register(userRequest);
+    }
 
+    @PostMapping("/login")
+    public ResponseEntity login(@RequestBody User userRequest) {
+        return keycloakService.login(userRequest);
     }
 }
