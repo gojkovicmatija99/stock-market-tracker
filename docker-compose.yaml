@@ -3,7 +3,7 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:latest
-    container_name: stock-marker-tracker-mongo
+    container_name: stock-market-tracker-mongo
     ports:
       - "27017:27017"
     networks:
@@ -11,7 +11,7 @@ services:
 
   postgres:
     image: postgres:14-alpine
-    container_name: stock-marker-tracker-postgres
+    container_name: stock-market-tracker-postgres
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: secret
@@ -40,7 +40,7 @@ services:
 #    depends_on:
 #      - postgres
   keycloak:
-    container_name: stock-marker-tracker-keycloak
+    container_name: stock-market-tracker-keycloak
     image: quay.io/keycloak/keycloak:23.0.4
     command:
       - start-dev
@@ -57,10 +57,48 @@ services:
       KEYCLOAK_DATABASE_PASSWORD: secret
     depends_on:
       - postgres
+    networks:
+      - stock-marker-tracker
 
+#  eureka:
+#    container_name: eureka
+#    build:
+#      context: ./eureka
+#      dockerfile: Dockerfile
+#    ports:
+#      - "8761:8761"
+#    networks:
+#      - stock-marker-tracker
+#
+#  auth-service:
+#    container_name: stock-market-tracker-auth-service
+#    build:
+#      context: ./auth-service
+#      dockerfile: Dockerfile
+#    ports:
+#      - "8081:8081"
+#    depends_on:
+#      - eureka
+#      - keycloak
+#    networks:
+#      - stock-marker-tracker
+
+#  portfolio-service:
+#    container_name: stock-market-tracker-portfolio-service
+#    build:
+#      context: ./portfolio-service
+#      dockerfile: Dockerfile
+#    ports:
+#      - "8082:8082"
+#    depends_on:
+#      - eureka
+#    networks:
+#      - stock-marker-tracker
+      
 networks:
   stock-marker-tracker:
     driver: bridge
 
 volumes:
   postgres:
+    driver: local

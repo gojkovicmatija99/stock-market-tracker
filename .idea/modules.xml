@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/auth-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/auth-service.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/stock-market-tracker.iml" filepath="$PROJECT_DIR$/.idea/stock-market-tracker.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.stockmarkettracker.portfolio-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.stockmarkettracker.portfolio-service.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/stock-service.main.iml" filepath="$PROJECT_DIR$/.idea/modules/stock-service.main.iml" />
     </modules>
   </component>

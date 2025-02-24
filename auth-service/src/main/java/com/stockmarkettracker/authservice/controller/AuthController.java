@@ -6,6 +6,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 @RestController
 @RequestMapping("/auth")
@@ -22,5 +24,10 @@ public class AuthController extends BaseController {
     @PostMapping("/login")
     public ResponseEntity login(@RequestBody User userRequest) {
         return keycloakService.login(userRequest);
+    }
+
+    @GetMapping("/userinfo")
+    public User userInfo(@RequestHeader(name="Authorization") String token) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        return keycloakService.getUserInfo(token);
     }
 }

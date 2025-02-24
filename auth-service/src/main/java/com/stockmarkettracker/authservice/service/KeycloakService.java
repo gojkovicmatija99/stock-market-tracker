@@ -1,7 +1,8 @@
 package com.stockmarkettracker.authservice.service;
 
-import com.stockmarkettracker.authservice.domain.Role;
 import com.stockmarkettracker.authservice.domain.User;
+import com.stockmarkettracker.authservice.domain.Role;
+import io.jsonwebtoken.Jwts;
 import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
@@ -14,9 +15,14 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 
-import javax.annotation.Resource;
 import javax.ws.rs.core.Response;
+import java.util.Base64;
 import java.util.Collections;
 
 @Service
@@ -36,6 +42,9 @@ public class KeycloakService {
 
     @Value("${keycloak.admin.credentials.secret}")
     public String clientSecret;
+
+    @Value("${keycloak.jwt.signing.key}")
+    public String signingKey;
 
     public String register(User user) {
         Keycloak keycloak = KeycloakBuilder.builder()
@@ -84,6 +93,21 @@ public class KeycloakService {
         AccessTokenResponse tokenResponse = keycloak.tokenManager().getAccessToken();
 
         return ResponseEntity.ok(tokenResponse);
+    }
+
+    public User getUserInfo(String token) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        byte[] encoded = Base64.getDecoder().decode(signingKey);
+
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encoded);
+        PublicKey publicKey = keyFactory.generatePublic(keySpec);
+
+        String subject = Jwts.parser()
+                .setSigningKey(publicKey)
+                .parseClaimsJws(token.split(" ")[1])
+                .getBody()
+                .getSubject();
+        return User.builder().subject(subject).build();
     }
 
     private static CredentialRepresentation createPasswordCredentials(String password) {
