@@ -4,11 +4,11 @@ import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.service.TransactionService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-@Controller
+@RestController
 @RequestMapping("/transactions")
 public class TransactionController extends BaseController {
 
@@ -16,7 +16,17 @@ public class TransactionController extends BaseController {
     private TransactionService transactionService;
 
     @GetMapping
-    public Flux<Transaction> getTransaction() {
-        return transactionService.getTransactions();
+    public Flux<Transaction> getTransactions(@RequestHeader("Authorization") String authHeader) {
+        return transactionService.getTransactions(authHeader);
+    }
+
+    @GetMapping("/{transactionId}")
+    public Mono<Transaction> getTransaction(@RequestHeader("Authorization") String authHeader, @PathVariable String transactionId) {
+        return transactionService.getTransaction(authHeader, transactionId);
+    }
+
+    @PostMapping
+    public Mono<Transaction> getTransaction(@RequestHeader("Authorization") String authHeader, @RequestBody Transaction transaction) {
+        return transactionService.saveTransaction(authHeader, transaction);
     }
 }
