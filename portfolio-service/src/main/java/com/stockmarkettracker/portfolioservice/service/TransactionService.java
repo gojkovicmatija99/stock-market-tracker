@@ -2,7 +2,7 @@ package com.stockmarkettracker.portfolioservice.service;
 
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.httpClient.AuthHttpClient;
-import com.stockmarkettracker.portfolioservice.httpClient.StockHttpClient;
+import com.stockmarkettracker.portfolioservice.httpClient.MarketHttpClient;
 import com.stockmarkettracker.portfolioservice.repository.TransactionRepository;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ public class TransactionService {
     private AuthHttpClient authHttpClient;
 
     @Resource
-    private StockHttpClient stockHttpClient;
+    private MarketHttpClient marketHttpClient;
 
     @Resource
     private TransactionRepository transactionRepository;
@@ -35,8 +35,24 @@ public class TransactionService {
 
     public Mono<Transaction> saveTransaction(String authHeader, Transaction transaction) {
         String userId = authHttpClient.getUserSubject(authHeader);
-        transaction.setUserId(userId);
-        transaction.setDate(new Date());
-        return transactionRepository.save(transaction);
+
+        Mono<String> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol());
+        return priceMono.flatMap(price -> {
+                    if (price == null) {
+                        return Mono.error(new Exception("Market price for symbol " + transaction.getSymbol() + " not found."));
+                    }
+
+                    transaction.setUserId(userId);
+                    transaction.setDate(new Date());
+                    transaction.setPrice(price);
+
+                    return transactionRepository.save(transaction);
+                })
+                .onErrorMap(e -> {
+                    if (e instanceof Exception) {
+                        return e;
+                    }
+                    return new Exception("Error saving transaction", e);
+                });
     }
 }

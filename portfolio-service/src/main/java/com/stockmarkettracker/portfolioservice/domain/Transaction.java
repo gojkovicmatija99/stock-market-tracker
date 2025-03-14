@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import reactor.core.publisher.Mono;
 
 import java.util.Date;
 
@@ -15,7 +16,7 @@ public class Transaction {
     private String transactionId;
     private String userId;
     private String symbol;
-    private double price;
+    private String price;
     private double amount;
     private Date date;
 }

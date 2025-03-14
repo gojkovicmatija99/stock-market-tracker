@@ -3,7 +3,6 @@ package com.stockmarkettracker.portfolioservice.controller;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.service.TransactionService;
 import jakarta.annotation.Resource;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,13 +19,13 @@ public class TransactionController extends BaseController {
         return transactionService.getTransactions(authHeader);
     }
 
+    @PostMapping
+    public Mono<Transaction> saveTransaction(@RequestHeader("Authorization") String authHeader, @RequestBody Transaction transaction) {
+        return transactionService.saveTransaction(authHeader, transaction);
+    }
+
     @GetMapping("/{transactionId}")
     public Mono<Transaction> getTransaction(@RequestHeader("Authorization") String authHeader, @PathVariable String transactionId) {
         return transactionService.getTransaction(authHeader, transactionId);
-    }
-
-    @PostMapping
-    public Mono<Transaction> getTransaction(@RequestHeader("Authorization") String authHeader, @RequestBody Transaction transaction) {
-        return transactionService.saveTransaction(authHeader, transaction);
     }
 }
