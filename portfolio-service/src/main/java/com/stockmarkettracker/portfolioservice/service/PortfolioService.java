@@ -28,7 +28,7 @@ public class PortfolioService {
     public Mono<Portfolio> getPortfolio(String authHeader) {
         String userId = authHttpClient.getUserSubject(authHeader);
         Flux<Transaction> transactionFlux = transactionRepository.getTransactionsByUserId(userId);
-        Flux<Holding> holdingFlux = buildHoldingsFromTransactions(authHeader, transactionFlux);
+        Flux<Holding> holdingFlux = buildHoldingsFromTransactions(authHeader, transactionFlux).onErrorResume(Mono::error);
         return Mono.zip(holdingFlux.collectList(), calculateTotalProfitAndLoss(holdingFlux))
                 .map(tuple -> new Portfolio(
                         tuple.getT1(),
@@ -48,18 +48,18 @@ public class PortfolioService {
                             double totalPrice = 0;
                             for (Transaction transaction : symbolTransactions) {
                                 totalAmount += transaction.getAmount();
-                                totalPrice += transaction.getAmount() * Double.valueOf(transaction.getPrice());
+                                totalPrice += transaction.getAmount() * transaction.getPrice();
                             }
                             double averagePrice = totalPrice / totalAmount;
 
-                            Mono<String> priceMono = marketHttpClient.getMarketPrice(authHeader, symbol);
-
+                            Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, symbol);
                             double finalTotalAmount = totalAmount;
-                            return priceMono.flatMap(price -> {
-                                Double currentMarketPrice = Double.valueOf(price);
-                                Holding holding = new Holding(symbol, finalTotalAmount, averagePrice, currentMarketPrice);
-                                return Mono.just(holding);
-                            });
+                            return priceMono
+                                    .onErrorResume(Mono::error)
+                                    .flatMap(price -> {
+                                        Holding holding = new Holding(symbol, finalTotalAmount, averagePrice, price);
+                                        return Mono.just(holding);
+                                    });
                         }));
     }
 

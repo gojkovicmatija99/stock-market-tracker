@@ -1,5 +1,6 @@
 package com.stockmarkettracker.portfolioservice.service;
 
+import com.stockmarkettracker.portfolioservice.data.RealTimePriceData;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.httpClient.AuthHttpClient;
 import com.stockmarkettracker.portfolioservice.httpClient.MarketHttpClient;
@@ -36,23 +37,14 @@ public class TransactionService {
     public Mono<Transaction> saveTransaction(String authHeader, Transaction transaction) {
         String userId = authHttpClient.getUserSubject(authHeader);
 
-        Mono<String> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol());
-        return priceMono.flatMap(price -> {
-                    if (price == null) {
-                        return Mono.error(new Exception("Market price for symbol " + transaction.getSymbol() + " not found."));
-                    }
-
+        Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol());
+        return priceMono
+                .onErrorResume(Mono::error)
+                .flatMap(price -> {
                     transaction.setUserId(userId);
                     transaction.setDate(new Date());
                     transaction.setPrice(price);
-
                     return transactionRepository.save(transaction);
-                })
-                .onErrorMap(e -> {
-                    if (e instanceof Exception) {
-                        return e;
-                    }
-                    return new Exception("Error saving transaction", e);
                 });
     }
 }

@@ -8,5 +8,5 @@ import lombok.*;
 @Setter
 @ToString
 public class RealTimePriceData {
-    private String price;
+    private Double price;
 }

@@ -7,5 +7,9 @@ meta {
 get {
   url: http://localhost:8081/auth/userinfo
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
 }

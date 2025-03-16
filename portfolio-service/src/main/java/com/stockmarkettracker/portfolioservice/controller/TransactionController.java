@@ -3,6 +3,7 @@ package com.stockmarkettracker.portfolioservice.controller;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.service.TransactionService;
 import jakarta.annotation.Resource;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -20,7 +21,7 @@ public class TransactionController extends BaseController {
     }
 
     @PostMapping
-    public Mono<Transaction> saveTransaction(@RequestHeader("Authorization") String authHeader, @RequestBody Transaction transaction) {
+    public Mono<Transaction> saveTransaction(@RequestHeader("Authorization") String authHeader, @RequestBody @Valid Transaction transaction) {
         return transactionService.saveTransaction(authHeader, transaction);
     }
 
