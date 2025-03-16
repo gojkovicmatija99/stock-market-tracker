@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:latest
@@ -60,40 +58,52 @@ services:
     networks:
       - stock-marker-tracker
 
-#  eureka:
-#    container_name: eureka
-#    build:
-#      context: ./eureka
-#      dockerfile: Dockerfile
-#    ports:
-#      - "8761:8761"
-#    networks:
-#      - stock-marker-tracker
-#
-#  auth-service:
-#    container_name: stock-market-tracker-auth-service
-#    build:
-#      context: ./auth-service
-#      dockerfile: Dockerfile
-#    ports:
-#      - "8081:8081"
-#    depends_on:
-#      - eureka
-#      - keycloak
-#    networks:
-#      - stock-marker-tracker
+  eureka:
+    container_name: eureka
+    build:
+      context: ./eureka
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+    networks:
+      - stock-marker-tracker
 
-#  portfolio-service:
-#    container_name: stock-market-tracker-portfolio-service
-#    build:
-#      context: ./portfolio-service
-#      dockerfile: Dockerfile
-#    ports:
-#      - "8082:8082"
-#    depends_on:
-#      - eureka
-#    networks:
-#      - stock-marker-tracker
+  auth-service:
+    container_name: stock-market-tracker-auth-service
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eureka
+      - keycloak
+    networks:
+      - stock-marker-tracker
+
+  stock-service:
+    container_name: stock-market-tracker-stock-service
+    build:
+      context: ./stock-service
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eureka
+    networks:
+      - stock-marker-tracker
+
+  portfolio-service:
+    container_name: stock-market-tracker-portfolio-service
+    build:
+      context: ./portfolio-service
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    depends_on:
+      - eureka
+    networks:
+      - stock-marker-tracker
       
 networks:
   stock-marker-tracker:

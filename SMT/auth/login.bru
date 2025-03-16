@@ -1,0 +1,25 @@
+meta {
+  name: login
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8081/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "matija",
+    "password": "1234"
+  }
+}
+
+body:form-urlencoded {
+  grant_type: password
+  client_id: smt-client
+  username: admin
+  password: admin
+}
