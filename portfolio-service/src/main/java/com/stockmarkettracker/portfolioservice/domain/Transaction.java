@@ -1,10 +1,11 @@
 package com.stockmarkettracker.portfolioservice.domain;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.lang.NonNull;
 
 import java.util.Date;
 
@@ -14,13 +15,14 @@ import java.util.Date;
 public class Transaction {
     @Id
     private String transactionId;
-    @NonNull()
+    @NotNull
     private TransactionType type;
     private String userId;
-    @NonNull
+    @NotNull
+    @NotBlank
     private String symbol;
     private Double price;
-    @NonNull
+    @NotNull
     private Double amount;
     private Date date;
 }

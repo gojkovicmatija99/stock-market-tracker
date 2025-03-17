@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import javax.naming.LimitExceededException;
+import javax.ws.rs.BadRequestException;
 import javax.ws.rs.NotFoundException;
 import java.security.InvalidParameterException;
 
@@ -28,7 +29,12 @@ public class BaseController {
     }
 
     @ExceptionHandler(LimitExceededException.class)
-    public ResponseEntity<String> responseLimitExceededException(Exception e) {
+    public ResponseEntity<String> responseLimitExceededException() {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Too many requests, rate limit exceeded");
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<String> responseBadRequestException(Exception e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 }

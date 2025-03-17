@@ -3,6 +3,7 @@ package com.stockmarkettracker.portfolioservice.service;
 import com.stockmarkettracker.portfolioservice.domain.Holding;
 import com.stockmarkettracker.portfolioservice.domain.Portfolio;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
+import com.stockmarkettracker.portfolioservice.domain.TransactionType;
 import com.stockmarkettracker.portfolioservice.httpClient.AuthHttpClient;
 import com.stockmarkettracker.portfolioservice.httpClient.MarketHttpClient;
 import com.stockmarkettracker.portfolioservice.repository.TransactionRepository;
@@ -47,10 +48,20 @@ public class PortfolioService {
                             double totalAmount = 0;
                             double totalPrice = 0;
                             for (Transaction transaction : symbolTransactions) {
-                                totalAmount += transaction.getAmount();
-                                totalPrice += transaction.getAmount() * transaction.getPrice();
+                                if (transaction.getType() == TransactionType.BUY) {
+                                    totalAmount += transaction.getAmount();
+                                    totalPrice += transaction.getAmount() * transaction.getPrice();
+                                } else if (transaction.getType() == TransactionType.SELL) {
+                                    totalAmount -= transaction.getAmount();
+                                    totalPrice -= transaction.getAmount() * transaction.getPrice();
+                                }
                             }
-                            double averagePrice = totalPrice / totalAmount;
+
+                            if (totalAmount < 0) {
+                                return Mono.error(new IllegalStateException("Sell transactions exceed buy transactions for symbol: " + symbol));
+                            }
+
+                            double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
 
                             Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, symbol);
                             double finalTotalAmount = totalAmount;
