@@ -41,23 +41,31 @@ public class TransactionService {
         String userId = authHttpClient.getUserSubject(authHeader);
         transaction.setSymbol(transaction.getSymbol().toUpperCase());
 
-        Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol())
-                .onErrorResume(Mono::error);
-        Flux<Double> buyTransactionFlux = transactionRepository .getTransactionByTypeAndUserId(TransactionType.BUY, userId)
-                                                                .map(Transaction::getAmount);
-        return Mono.zip(MathFlux.sumInt(buyTransactionFlux), priceMono).flatMap(tuple -> {
-            Integer sum = tuple.getT1();
-            Double price = tuple.getT2();
-
-            if (sum < transaction.getAmount() && transaction.getType().equals(TransactionType.SELL)) {
-                return Mono.error(new BadRequestException("Not enough " + transaction.getSymbol() + " to sell"));
-            }
-
-            transaction.setUserId(userId);
+        return marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol())
+                .onErrorResume(Mono::error).flatMap(price -> {
+                    transaction.setUserId(userId);
             transaction.setDate(new Date());
             transaction.setPrice(price);
 
             return transactionRepository.save(transaction);
-        });
+                });
+//        Flux<Double> buyTransactionFlux = transactionRepository .getTransactionByTypeAndUserId(TransactionType.BUY, userId)
+//                                                                .map(Transaction::getAmount);
+//        return Mono.zip(MathFlux.sumInt(buyTransactionFlux), priceMono).flatMap(tuple -> {
+//            Integer sum = tuple.getT1();
+//            Double price = tuple.getT2();
+//
+//            if (sum < transaction.getAmount() && transaction.getType().equals(TransactionType.SELL)) {
+//                return Mono.error(new BadRequestException("Not enough " + transaction.getSymbol() + " to sell"));
+//            }
+//
+//            transaction.setUserId(userId);
+//            transaction.setDate(new Date());
+//            transaction.setPrice(price);
+//
+//            return transactionRepository.save(transaction);
+//        });
+
+
     }
 }

@@ -15,6 +15,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class PortfolioService {
+
+    public static final int MAX_HISTORY_POINTS = 5;
+
     @Resource
     private AuthHttpClient authHttpClient;
 
@@ -53,41 +56,42 @@ public class PortfolioService {
                     // Create a list to store portfolios for each time point
                     List<Portfolio> portfolioList = new ArrayList<>();
 
-                    // Iterate over all symbols in the time series data
-                    for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
-                        String symbol = entry.getKey();
-                        TimeSeriesData timeSeriesData = entry.getValue();
+                    for (int i = 0; i < MAX_HISTORY_POINTS; i++) {
+                        Portfolio portfolio = new Portfolio();
+                        Map<String, Holding> holdingsMap = new HashMap<>();
+                        for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
+                            String symbol = entry.getKey();
 
-                        // Iterate over the past TimeSeries data points (up to 5 values)
-                        for (TimeSeries timePoint : timeSeriesData.getValues()) {
-                            Map<String, Holding> holdingsMap = new HashMap<>();
 
                             // For each symbol, calculate the total position and profit/loss
                             if (groupedBySymbol.containsKey(symbol)) {
                                 double totalAmount = 0;
                                 double totalPrice = 0;
-
-                                for (Transaction t : groupedBySymbol.get(symbol)) {
-                                    totalAmount += t.getAmount();
-                                    totalPrice += t.getPrice();  // Example, you might need to adjust based on your logic
+                                for (Transaction transaction : groupedBySymbol.get(symbol)) {
+                                    if (transaction.getType() == TransactionType.BUY) {
+                                        totalAmount += transaction.getAmount();
+                                        totalPrice += transaction.getAmount() * transaction.getPrice();
+                                    } else if (transaction.getType() == TransactionType.SELL) {
+                                        totalAmount -= transaction.getAmount();
+                                        totalPrice -= transaction.getAmount() * transaction.getPrice();
+                                    }
                                 }
 
-                                // Use historical price from TimeSeries to calculate Profit/Loss at this time point
-                                double historicalPrice = Double.parseDouble(timePoint.getOpen());
-                                double totalPL = totalAmount * (historicalPrice - totalPrice);  // Profit/Loss based on historical price
+                                double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
 
-                                holdingsMap.put(symbol, new Holding(symbol, totalAmount, historicalPrice, totalPL));
+                                // Use historical price from TimeSeries to calculate Profit/Loss at this time point
+                                double historicalPrice = Double.parseDouble(timeSeriesDataMap.get(symbol).getValues().get(i).getOpen());
+                                holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
                             }
 
-                            // Create a portfolio for the current time point
-                            Portfolio portfolio = new Portfolio();
-                            portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
-                            portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
-
-                            // Add this portfolio for the current time point
-                            portfolioList.add(portfolio);
                         }
+                        portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
+                        portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
+                        portfolioList.add(portfolio);
                     }
+
+                    // Iterate over all symbols in the time series data
+
 
                     // Return a Flux containing the portfolio history for all time points
                     return Flux.fromIterable(portfolioList);
