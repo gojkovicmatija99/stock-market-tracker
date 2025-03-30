@@ -5,6 +5,7 @@ import com.stockmarkettracker.portfolioservice.domain.TransactionType;
 import com.stockmarkettracker.portfolioservice.httpClient.AuthHttpClient;
 import com.stockmarkettracker.portfolioservice.httpClient.MarketHttpClient;
 import com.stockmarkettracker.portfolioservice.repository.TransactionRepository;
+import io.jsonwebtoken.lang.Strings;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -38,9 +39,10 @@ public class TransactionService {
 
     public Mono<Transaction> saveTransaction(String authHeader, Transaction transaction) {
         String userId = authHttpClient.getUserSubject(authHeader);
+        transaction.setSymbol(transaction.getSymbol().toUpperCase());
 
-        // TODO Hndle priceMono error
-        Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol());
+        Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, transaction.getSymbol())
+                .onErrorResume(Mono::error);
         Flux<Double> buyTransactionFlux = transactionRepository .getTransactionByTypeAndUserId(TransactionType.BUY, userId)
                                                                 .map(Transaction::getAmount);
         return Mono.zip(MathFlux.sumInt(buyTransactionFlux), priceMono).flatMap(tuple -> {

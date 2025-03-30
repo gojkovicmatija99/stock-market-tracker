@@ -2,6 +2,8 @@ package com.stockmarkettracker.portfolioservice.httpClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.stockmarkettracker.portfolioservice.data.RealTimePriceData;
+import com.stockmarkettracker.portfolioservice.data.TimeSeriesData;
+import com.stockmarkettracker.portfolioservice.domain.Interval;
 import com.stockmarkettracker.portfolioservice.domain.User;
 import jakarta.annotation.Resource;
 import org.springframework.cloud.client.ServiceInstance;
@@ -51,4 +53,22 @@ public class MarketHttpClient {
                 .map(RealTimePriceData::getPrice);
     }
 
+    public Mono<TimeSeriesData> getTimeSeries(String authToken, String symbol, Interval interval) {
+        var serviceInstance = discoveryClient.getInstances("stock-service")
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No instances of stock-service found"));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authToken);
+
+        return webClient.get()
+                .uri(serviceInstance.getUri() + "/market/time-series/" + symbol + "?interval=" + interval)
+                .headers(httpHeaders -> httpHeaders.addAll(headers))
+                .retrieve()
+                .onStatus(status -> status.equals(HttpStatusCode.valueOf(429)), response -> Mono.error(new LimitExceededException()))
+                .onStatus(status -> status.equals(HttpStatusCode.valueOf(404)), response -> Mono.error(new NotFoundException(symbol)))
+                .onStatus(status -> status.equals(HttpStatusCode.valueOf(500)), response -> Mono.error(new Exception(response.toString())))
+                .bodyToMono(TimeSeriesData.class);
+    }
 }
