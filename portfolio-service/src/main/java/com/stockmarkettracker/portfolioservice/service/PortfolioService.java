@@ -1,9 +1,11 @@
 package com.stockmarkettracker.portfolioservice.service;
 
+import com.stockmarkettracker.portfolioservice.data.GroupedTransactionData;
 import com.stockmarkettracker.portfolioservice.data.TimeSeriesData;
 import com.stockmarkettracker.portfolioservice.domain.*;
 import com.stockmarkettracker.portfolioservice.httpClient.AuthHttpClient;
 import com.stockmarkettracker.portfolioservice.httpClient.MarketHttpClient;
+import com.stockmarkettracker.portfolioservice.repository.TransactionCustomRepository;
 import com.stockmarkettracker.portfolioservice.repository.TransactionRepository;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -27,33 +29,61 @@ public class PortfolioService {
     @Resource
     private TransactionRepository transactionRepository;
 
+    @Resource
+    private TransactionCustomRepository transactionCustomRepository;
+
     public Mono<Portfolio> getPortfolio(String authHeader) {
         String userId = authHttpClient.getUserSubject(authHeader);
-        Flux<Transaction> transactionFlux = transactionRepository.getTransactionsByUserId(userId);
-        Flux<Holding> holdingFlux = buildHoldingsFromTransactions(authHeader, transactionFlux).onErrorResume(Mono::error);
+        Flux<GroupedTransactionData> groupedTransactionFlux = transactionCustomRepository.getTransactionsGroupedBySymbol(userId);
+        Flux<Holding> holdingFlux = buildHoldingsFromTransactions(authHeader, groupedTransactionFlux).onErrorResume(Mono::error);
         return Mono.zip(holdingFlux.collectList(), calculateTotalProfitAndLoss(holdingFlux))
                 .map(tuple -> new Portfolio(
+                        null,
                         tuple.getT1(),
                         tuple.getT2()
                 ));
     }
 
-    // TODO Blocking
+    private Flux<Holding> buildHoldingsFromTransactions(String authHeader, Flux<GroupedTransactionData> groupedTransactionFlux) {
+        return groupedTransactionFlux
+                .flatMap(groupedTransaction -> {
+                    String symbol = groupedTransaction.getSymbol();
+                    List<Transaction> transactions = groupedTransaction.getTransactions();
+
+                    double totalAmount = transactions.stream()
+                            .mapToDouble(t -> t.getType() == TransactionType.BUY ? t.getAmount() : -t.getAmount())
+                            .sum();
+
+                    double totalPrice = transactions.stream()
+                            .mapToDouble(t -> t.getType() == TransactionType.BUY
+                                    ? t.getAmount() * t.getPrice()
+                                    : -t.getAmount() * t.getPrice())
+                            .sum();
+
+                    double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
+
+                    Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, symbol);
+                    return priceMono
+                            .onErrorResume(Mono::error)
+                            .flatMap(price -> {
+                                Holding holding = new Holding(symbol, totalAmount, averagePrice, price);
+                                return Mono.just(holding);
+                            });
+                });
+    }
+
     public Flux<Portfolio> getPortfolioHistory(String authHeader, Interval interval) {
         String userId = authHttpClient.getUserSubject(authHeader);
         Flux<Transaction> transactionFlux = transactionRepository.getTransactionsByUserId(userId);
         Mono<Map<String, TimeSeriesData>> timeSeriesDataMono = getTimeSeries(authHeader, interval);
 
-        // Use Mono.zip to combine the results of Flux<Transaction> and Mono<Map<String, TimeSeriesData>>
         return Mono.zip(transactionFlux.collectList(), timeSeriesDataMono)
                 .flatMapMany(tuple -> {
-                    List<Transaction> transactions = tuple.getT1();  // List of transactions
-                    Map<String, TimeSeriesData> timeSeriesDataMap = tuple.getT2();  // Map of time series data
+                    List<Transaction> transactions = tuple.getT1();
+                    Map<String, TimeSeriesData> timeSeriesDataMap = tuple.getT2();
 
-                    // Group transactions by symbol
                     Map<String, List<Transaction>> groupedBySymbol = groupTransactionsBySymbol(transactions);
 
-                    // Create a list to store portfolios for each time point
                     List<Portfolio> portfolioList = new ArrayList<>();
 
                     for (int i = 0; i < MAX_HISTORY_POINTS; i++) {
@@ -62,8 +92,6 @@ public class PortfolioService {
                         for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
                             String symbol = entry.getKey();
 
-
-                            // For each symbol, calculate the total position and profit/loss
                             if (groupedBySymbol.containsKey(symbol)) {
                                 double totalAmount = 0;
                                 double totalPrice = 0;
@@ -79,66 +107,24 @@ public class PortfolioService {
 
                                 double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
 
-                                // Use historical price from TimeSeries to calculate Profit/Loss at this time point
                                 double historicalPrice = Double.parseDouble(timeSeriesDataMap.get(symbol).getValues().get(i).getOpen());
                                 holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
                             }
 
                         }
+                        portfolio.setDatetime(timeSeriesDataMap.get(0).getValues().get(i).getDatetime());
                         portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
                         portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
                         portfolioList.add(portfolio);
                     }
 
-                    // Iterate over all symbols in the time series data
-
-
-                    // Return a Flux containing the portfolio history for all time points
                     return Flux.fromIterable(portfolioList);
                 });
     }
 
     private Map<String, List<Transaction>> groupTransactionsBySymbol(List<Transaction> transactions) {
-        // Group transactions by symbol
         return transactions.stream()
                 .collect(Collectors.groupingBy(Transaction::getSymbol));
-    }
-
-    private Flux<Holding> buildHoldingsFromTransactions(String authHeader, Flux<Transaction> transactions) {
-        return transactions
-                .collect(Collectors.groupingBy(Transaction::getSymbol))
-                .flatMapMany(symbolMap -> Flux.fromIterable(symbolMap.entrySet())
-                        .flatMap(entry -> {
-                            String symbol = entry.getKey();
-                            List<Transaction> symbolTransactions = entry.getValue();
-
-                            double totalAmount = 0;
-                            double totalPrice = 0;
-                            for (Transaction transaction : symbolTransactions) {
-                                if (transaction.getType() == TransactionType.BUY) {
-                                    totalAmount += transaction.getAmount();
-                                    totalPrice += transaction.getAmount() * transaction.getPrice();
-                                } else if (transaction.getType() == TransactionType.SELL) {
-                                    totalAmount -= transaction.getAmount();
-                                    totalPrice -= transaction.getAmount() * transaction.getPrice();
-                                }
-                            }
-
-                            if (totalAmount < 0) {
-                                return Mono.error(new IllegalStateException("Sell transactions exceed buy transactions for symbol: " + symbol));
-                            }
-
-                            double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
-
-                            Mono<Double> priceMono = marketHttpClient.getMarketPrice(authHeader, symbol);
-                            double finalTotalAmount = totalAmount;
-                            return priceMono
-                                    .onErrorResume(Mono::error)
-                                    .flatMap(price -> {
-                                        Holding holding = new Holding(symbol, finalTotalAmount, averagePrice, price);
-                                        return Mono.just(holding);
-                                    });
-                        }));
     }
 
     public Mono<Double> calculateTotalProfitAndLoss(Flux<Holding> holdings) {

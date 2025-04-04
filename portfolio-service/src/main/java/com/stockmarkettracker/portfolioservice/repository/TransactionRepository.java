@@ -2,7 +2,7 @@ package com.stockmarkettracker.portfolioservice.repository;
 
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.domain.TransactionType;
-import jakarta.validation.constraints.NotNull;
+
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;

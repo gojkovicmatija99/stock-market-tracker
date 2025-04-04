@@ -12,6 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @ToString
 public class Portfolio {
+    private String datetime;
     private List<Holding> holdingList;
     private Double totalProfitLoss;
 }

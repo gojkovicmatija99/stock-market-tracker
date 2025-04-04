@@ -1,5 +1,6 @@
 package com.stockmarkettracker.portfolioservice.controller;
 
+import com.stockmarkettracker.portfolioservice.data.GroupedTransactionData;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.service.TransactionService;
 import jakarta.annotation.Resource;
