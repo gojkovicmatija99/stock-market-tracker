@@ -1,6 +1,5 @@
 package com.stockmarkettracker.portfolioservice.controller;
 
-import com.stockmarkettracker.portfolioservice.data.GroupedTransactionData;
 import com.stockmarkettracker.portfolioservice.domain.Transaction;
 import com.stockmarkettracker.portfolioservice.service.TransactionService;
 import jakarta.annotation.Resource;
@@ -26,8 +25,8 @@ public class TransactionController extends BaseController {
         return transactionService.saveTransaction(authHeader, transaction);
     }
 
-    @GetMapping("/{transactionId}")
-    public Mono<Transaction> getTransaction(@RequestHeader("Authorization") String authHeader, @PathVariable String transactionId) {
-        return transactionService.getTransaction(authHeader, transactionId);
+    @GetMapping("/{symbol}")
+    public Flux<Transaction> getTransactionsBySymbol(@RequestHeader("Authorization") String authHeader, @PathVariable String symbol) {
+        return transactionService.getTransactionsBySymbol(authHeader, symbol);
     }
 }

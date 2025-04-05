@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 
 @Component
-public class ReactiveWebSocketHandler implements WebSocketHandler {
+public class  ReactiveWebSocketHandler implements WebSocketHandler {
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {

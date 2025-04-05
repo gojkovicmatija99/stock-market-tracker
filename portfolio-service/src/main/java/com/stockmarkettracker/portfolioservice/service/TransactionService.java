@@ -24,12 +24,14 @@ public class TransactionService {
     @Resource
     private TransactionRepository transactionRepository;
 
-    @Resource
-    private TransactionCustomRepository transactionCustomRepository;
-
     public Flux<Transaction> getTransactions(String authHeader) {
         String userId = authHttpClient.getUserSubject(authHeader);
         return transactionRepository.getTransactionsByUserId(userId);
+    }
+
+    public Flux<Transaction> getTransactionsBySymbol(String authHeader, String symbol) {
+        String userId = authHttpClient.getUserSubject(authHeader);
+        return transactionRepository.getTransactionsBySymbolAndUserId(symbol, userId);
     }
 
     public Mono<Transaction> getTransaction(String authHeader, String transactionId) {

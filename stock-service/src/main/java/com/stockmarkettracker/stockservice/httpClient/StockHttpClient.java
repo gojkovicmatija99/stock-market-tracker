@@ -1,5 +1,6 @@
 package com.stockmarkettracker.stockservice.httpClient;
 
+import com.stockmarkettracker.stockservice.data.ApiResponseData;
 import com.stockmarkettracker.stockservice.data.RealTimePriceData;
 import com.stockmarkettracker.stockservice.data.StockInfoData;
 import com.stockmarkettracker.stockservice.data.TimeSeriesData;
@@ -9,7 +10,11 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
+import javax.naming.LimitExceededException;
+import javax.ws.rs.NotFoundException;
+import java.time.Duration;
 import java.util.List;
 
 @Component
@@ -34,11 +39,22 @@ public class StockHttpClient {
                 .map(StockInfoData::getData);
     }
 
-    public Flux<TimeSeriesData> getTimeSeries(String symbol, Interval interval) {
+    public Mono<TimeSeriesData> getTimeSeries(String symbol, Interval interval) {
         return baseHttpClient.getWebClient().get()
                 .uri(uriBuilder -> uriBuilder.path(TIMESERIES_ENDPOINT).queryParam("symbol", symbol).queryParam("interval", interval.toString()).queryParam("apikey", "2641e2a920c342399c652aec247ec866").build())
                 .retrieve()
-                .bodyToFlux(TimeSeriesData.class);
+                .bodyToMono(TimeSeriesData.class)
+                .flatMap(timeSeriesData -> {
+                    Mono<TimeSeriesData> error = handleIfError(timeSeriesData, symbol);
+                    if (error != null) {
+                        return error;
+                    }
+
+                    return Mono.just(timeSeriesData);
+                })
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                        .filter(throwable -> throwable instanceof LimitExceededException));
+
     }
 
     public Mono<List<StockInfo>> getEtfInfo(String symbol) {
@@ -49,10 +65,39 @@ public class StockHttpClient {
                 .map(StockInfoData::getData);
     }
 
-    public Flux<RealTimePriceData> getRealTimePrice(String symbol) {
+    public Mono<RealTimePriceData> getRealTimePrice(String symbol) {
         return baseHttpClient.getWebClient().get()
-                .uri(uriBuilder -> uriBuilder.path(PRICE_ENDPOINT).queryParam("symbol", symbol).build())
+                .uri(uriBuilder -> uriBuilder.path(PRICE_ENDPOINT)
+                        .queryParam("symbol", symbol)
+                        .queryParam("apikey", "2641e2a920c342399c652aec247ec866")
+                        .build())
                 .retrieve()
-                .bodyToFlux(RealTimePriceData.class);
+                .bodyToMono(RealTimePriceData.class)
+                .flatMap(priceData -> {
+                   Mono<RealTimePriceData> error = handleIfError(priceData, symbol);
+                   if (error != null) {
+                       return error;
+                   }
+
+                    return Mono.just(RealTimePriceData.builder().price(priceData.getPrice()).build());
+                })
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                        .filter(throwable -> throwable instanceof LimitExceededException));
+    }
+
+    private <T> Mono<T> handleIfError(ApiResponseData apiResponseData, String symbol){
+        if (apiResponseData.getStatus() == null || !apiResponseData.getStatus().equals("error")) {
+            return null;
+        }
+
+        if (apiResponseData.getCode() == 429) {
+            return Mono.error(new LimitExceededException());
+        }
+
+        if (apiResponseData.getCode() == 404) {
+            return Mono.error(new NotFoundException(symbol));
+        }
+
+        return Mono.error(new Exception(apiResponseData.getMessage()));
     }
 }

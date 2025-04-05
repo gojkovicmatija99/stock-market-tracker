@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 @Getter
 @Setter
-public class TimeSeriesData {
+public class TimeSeriesData extends ApiResponseData{
     private StockInfo meta;
     private List<TimeSeries> values;
 }

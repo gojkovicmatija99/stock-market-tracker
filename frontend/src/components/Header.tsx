@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MagnifyingGlassIcon, ChartBarIcon, BellIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { stockService } from '../services/stockService';
 
 interface Stock {
@@ -12,19 +12,18 @@ interface Stock {
 }
 
 interface HeaderProps {
-  onLogout: () => void;
-  selectedSymbol: Stock;
-  onSymbolChange: (symbol: Stock) => void;
+  selectedSymbol: string;
+  onSymbolChange: (symbol: string) => void;
   symbols: Stock[];
+  onLogout: () => void;
 }
 
-const Header = ({ onLogout, selectedSymbol, onSymbolChange, symbols }: HeaderProps) => {
+const Header = ({ selectedSymbol, onSymbolChange, symbols, onLogout }: HeaderProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Stock[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
@@ -51,35 +50,43 @@ const Header = ({ onLogout, selectedSymbol, onSymbolChange, symbols }: HeaderPro
   }, [searchQuery]);
 
   const handleStockSelect = (stock: Stock) => {
-    setSelectedStock(stock);
     setSearchQuery(stock.symbol);
     setSearchResults([]);
     setShowSearchResults(false);
-    onSymbolChange(stock);
+    onSymbolChange(stock.symbol);
   };
 
   return (
-    <header className="bg-[#131722] text-white p-4">
-      <div className="container mx-auto flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+    <div className="bg-tradingview-bg border-b border-tradingview-border">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <h1 className="text-2xl font-bold text-tradingview-text">Stock Market Tracker</h1>
+            <div className="text-xl text-tradingview-text/90">
+              {selectedSymbol}
+            </div>
+          </div>
           <div className="relative">
-            <input
-              type="text"
-              placeholder="Search stocks..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (e.target.value.length >= 2) {
-                  handleSearch(e.target.value);
-                } else {
-                  setSearchResults([]);
-                }
-              }}
-              onFocus={() => setShowSearchResults(true)}
-              className="bg-[#1e222d] text-white px-4 py-2 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search stocks..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value.length >= 2) {
+                    handleSearch(e.target.value);
+                  } else {
+                    setSearchResults([]);
+                  }
+                }}
+                onFocus={() => setShowSearchResults(true)}
+                className="bg-[#1e222d] text-white px-4 py-2 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <MagnifyingGlassIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            </div>
             {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 mt-1 w-96 bg-[#1e222d] rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div className="absolute top-full right-0 mt-1 w-96 bg-[#1e222d] rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
                 {searchResults.map((stock) => (
                   <button
                     key={`${stock.symbol}-${stock.mic_code}`}
@@ -99,23 +106,9 @@ const Header = ({ onLogout, selectedSymbol, onSymbolChange, symbols }: HeaderPro
               </div>
             )}
           </div>
-          {selectedStock && (
-            <div className="flex items-center space-x-2">
-              <span className="font-semibold">{selectedStock.symbol}</span>
-              <span className="text-sm text-gray-400">({selectedStock.exchange})</span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onLogout}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Logout
-          </button>
         </div>
       </div>
-    </header>
+    </div>
   );
 };
 

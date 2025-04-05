@@ -18,7 +18,7 @@ const Transactions = ({ symbol, currentPrice }: TransactionsProps) => {
     setError(null);
     try {
       console.log('Loading transactions for symbol:', symbol);
-      const data = await transactionService.getTransactions();
+      const data = await transactionService.getTransactionsBySymbol(symbol);
       setTransactions(data);
     } catch (err) {
       console.error('Error in loadTransactions:', err);

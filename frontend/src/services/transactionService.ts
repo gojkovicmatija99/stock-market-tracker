@@ -19,9 +19,14 @@ class TransactionService {
   private readonly API_URL = 'http://localhost:8083/transactions';
 
   async getTransactions(): Promise<Transaction[]> {
+    return this.getTransactionsBySymbol();
+  }
+
+  async getTransactionsBySymbol(symbol?: string): Promise<Transaction[]> {
     try {
       console.log('Fetching transactions...');
-      const response = await fetch(this.API_URL, {
+      const url = symbol ? `${this.API_URL}/${symbol}` : this.API_URL;
+      const response = await fetch(url, {
         method: 'GET',
         headers: authService.getAuthHeaders()
       });

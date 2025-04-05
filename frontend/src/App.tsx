@@ -1,76 +1,58 @@
 import { useState } from 'react';
 import Chart from './components/Chart';
-import Header from './components/Header';
-import Toolbar from './components/Toolbar';
-import StockInfo from './components/StockInfo';
 import Transactions from './components/Transactions';
+import Portfolio from './components/Portfolio';
+import Header from './components/Header';
 import { TimeInterval } from './components/Watchlist';
 import Login from './components/Login';
 
 const SYMBOLS = [
-  { symbol: 'AAPL', name: 'Apple Inc.' },
-  { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-  { symbol: 'TSLA', name: 'Tesla Inc.' },
-  { symbol: 'SAP', name: 'SAP SE' },
-  { symbol: 'MSFT', name: 'Microsoft Corporation' },
-  { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-  { symbol: 'META', name: 'Meta Platforms Inc.' },
-  { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-  { symbol: 'JPM', name: 'JPMorgan Chase & Co.' },
-  { symbol: 'V', name: 'Visa Inc.' }
+  { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', mic_code: 'XNAS', country: 'US', type: 'Common Stock' },
+  { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ', mic_code: 'XNAS', country: 'US', type: 'Common Stock' },
+  { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ', mic_code: 'XNAS', country: 'US', type: 'Common Stock' },
 ];
 
-const App = () => {
-  const [selectedSymbol, setSelectedSymbol] = useState(SYMBOLS[0]);
-  const [selectedInterval, setSelectedInterval] = useState<TimeInterval>('15min');
+function App() {
+  const [symbol, setSymbol] = useState('AAPL');
+  const [interval, setInterval] = useState<TimeInterval>('15min');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPrice, setCurrentPrice] = useState<number>(0);
+  const [currentPrice, setCurrentPrice] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
 
+  const handleSymbolChange = (newSymbol: string) => {
+    setSymbol(newSymbol);
+  };
+
   const handleLogout = () => {
-    // Clear any stored data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
     setIsAuthenticated(false);
   };
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
-
   if (!isAuthenticated) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    return <Login onLoginSuccess={() => setIsAuthenticated(true)} />;
   }
 
   return (
-    <div className="min-h-screen bg-tradingview-bg text-tradingview-text">
+    <div className="min-h-screen bg-tradingview-bg">
       <Header 
-        selectedSymbol={selectedSymbol}
-        onSymbolChange={setSelectedSymbol}
+        selectedSymbol={symbol}
+        onSymbolChange={handleSymbolChange}
         symbols={SYMBOLS}
         onLogout={handleLogout}
       />
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 gap-4">
-          <div className="bg-tradingview-panel rounded-lg shadow-lg">
-            <Toolbar
-              onIntervalChange={setSelectedInterval}
-              selectedInterval={selectedInterval}
-              isLoading={isLoading}
-            />
-            <Chart
-              symbol={selectedSymbol.symbol}
-              interval={selectedInterval}
+      <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="lg:col-span-3">
+            <Chart 
+              symbol={symbol} 
+              interval={interval} 
               onLoadingChange={setIsLoading}
+              onSymbolChange={handleSymbolChange}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <StockInfo 
-              symbol={selectedSymbol.symbol} 
-              onPriceUpdate={setCurrentPrice}
-            />
+          <div className="lg:col-span-1 space-y-6">
+            <Portfolio symbol={symbol} />
             <Transactions 
-              symbol={selectedSymbol.symbol} 
+              symbol={symbol} 
               currentPrice={currentPrice}
             />
           </div>
@@ -78,6 +60,6 @@ const App = () => {
       </div>
     </div>
   );
-};
+}
 
 export default App;

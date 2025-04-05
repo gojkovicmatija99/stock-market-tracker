@@ -1,14 +1,15 @@
 package com.stockmarkettracker.stockservice.data;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
-public class RealTimePriceData {
-    private String price;
+@ToString
+@Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class RealTimePriceData extends ApiResponseData {
+    private Double price;
 }

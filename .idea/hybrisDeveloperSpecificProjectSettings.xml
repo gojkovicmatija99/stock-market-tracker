@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="HybrisDeveloperSpecificProjectSettings">
+    <option name="beanSystemSettings">
+      <BeanSystemSettings />
+    </option>
+    <option name="bpSettings">
+      <BpSettings />
+    </option>
+    <option name="ccv2Settings">
+      <CCv2Settings />
+    </option>
+    <option name="cngSettings">
+      <CngSettings />
+    </option>
+    <option name="flexibleSearchSettings">
+      <FlexibleSearchSettings />
+    </option>
+    <option name="groovySettings">
+      <GroovySettings />
+    </option>
+    <option name="impexSettings">
+      <ImpexSettings />
+    </option>
+    <option name="polyglotQuerySettings">
+      <PolyglotQuerySettings />
+    </option>
+    <option name="typeSystemDiagramSettings">
+      <TSDiagramSettings />
+    </option>
+    <option name="typeSystemSettings">
+      <TypeSystemSettings />
+    </option>
+  </component>
+</project>
