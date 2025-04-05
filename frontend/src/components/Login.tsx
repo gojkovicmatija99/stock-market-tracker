@@ -29,7 +29,7 @@ const Login = ({ onLoginSuccess }: LoginProps) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-tradingview-bg">
       <div className="bg-tradingview-panel p-8 rounded-lg shadow-lg w-96">
-        <h2 className="text-2xl font-bold mb-6 text-tradingview-text text-center">Login to TradingView</h2>
+        <h2 className="text-2xl font-bold mb-6 text-tradingview-text text-center">Login to Stock Market Tracker</h2>
         
         {error && (
           <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-500 text-sm">

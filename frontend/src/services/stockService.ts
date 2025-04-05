@@ -17,6 +17,15 @@ interface StockSearchResult {
   type: string;
 }
 
+interface StockInfo {
+  symbol: string;
+  name: string;
+  exchange: string;
+  mic_code: string;
+  country: string;
+  type: string;
+}
+
 class StockService {
   async getStockData(symbol: string): Promise<StockData> {
     try {
@@ -111,6 +120,88 @@ class StockService {
       }));
     } catch (error) {
       console.error('Error searching stocks:', error);
+      throw error;
+    }
+  }
+
+  async getStockInfo(symbol: string): Promise<StockInfo> {
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      const response = await fetch(`${BACKEND_URL}/market/stocks/${symbol}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch stock info');
+      }
+
+      const data = await response.json();
+      console.log('Stock info response:', data); // Debug log
+
+      // Check if we have the required data
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('Invalid response format');
+      }
+
+      // Find the primary listing (NASDAQ)
+      const primaryListing = data.find(stock => stock.exchange === 'NASDAQ') || data[0];
+
+      // Map the data with fallbacks
+      const stockInfo: StockInfo = {
+        symbol: primaryListing.symbol || symbol,
+        name: primaryListing.name || 'Unknown',
+        exchange: primaryListing.exchange || 'Unknown',
+        mic_code: primaryListing.mic_code || 'Unknown',
+        country: primaryListing.country || 'Unknown',
+        type: primaryListing.type || 'Unknown'
+      };
+
+      // Log the mapped data for debugging
+      console.log('Mapped stock info:', stockInfo);
+      
+      return stockInfo;
+    } catch (error) {
+      console.error('Error fetching stock info:', error);
+      // Return default values instead of throwing
+      return {
+        symbol: symbol,
+        name: 'Unknown',
+        exchange: 'Unknown',
+        mic_code: 'Unknown',
+        country: 'Unknown',
+        type: 'Unknown'
+      };
+    }
+  }
+
+  async getCurrentPrice(symbol: string): Promise<number> {
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      const response = await fetch(`${BACKEND_URL}/market/prices/${symbol}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch current price');
+      }
+
+      const data = await response.json();
+      return data.price;
+    } catch (error) {
+      console.error('Error fetching current price:', error);
       throw error;
     }
   }

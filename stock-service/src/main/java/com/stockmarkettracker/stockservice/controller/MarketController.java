@@ -4,6 +4,7 @@ import com.stockmarkettracker.stockservice.data.RealTimePriceData;
 import com.stockmarkettracker.stockservice.data.TimeSeriesData;
 import com.stockmarkettracker.stockservice.domain.Interval;
 import com.stockmarkettracker.stockservice.domain.StockInfo;
+import com.stockmarkettracker.stockservice.domain.StockProfile;
 import com.stockmarkettracker.stockservice.service.MarketService;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
@@ -41,5 +42,10 @@ public class MarketController {
     @GetMapping("/prices/{symbol}")
     public Mono<RealTimePriceData> getRealTimePrice(@PathVariable String symbol) {
         return stockService.getRealTimePrice(symbol);
+    }
+
+    @GetMapping("/profile/{symbol}")
+    public Mono<StockProfile> getStockProfile(@PathVariable String symbol) {
+        return stockService.getStockProfile(symbol);
     }
 }

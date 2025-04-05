@@ -6,6 +6,7 @@ import com.stockmarkettracker.stockservice.data.StockInfoData;
 import com.stockmarkettracker.stockservice.data.TimeSeriesData;
 import com.stockmarkettracker.stockservice.domain.Interval;
 import com.stockmarkettracker.stockservice.domain.StockInfo;
+import com.stockmarkettracker.stockservice.domain.StockProfile;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -27,6 +28,8 @@ public class StockHttpClient {
     public static final String TIMESERIES_ENDPOINT = "/time_series";
 
     public static final String PRICE_ENDPOINT = "/price";
+
+    public static final String PROFILE_ENDPOINT = "/profile";
 
     @Resource
     private BaseHttpClient baseHttpClient;
@@ -80,6 +83,25 @@ public class StockHttpClient {
                    }
 
                     return Mono.just(RealTimePriceData.builder().price(priceData.getPrice()).build());
+                })
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                        .filter(throwable -> throwable instanceof LimitExceededException));
+    }
+
+    public Mono<StockProfile> getStockProfile(String symbol) {
+        return baseHttpClient.getWebClient().get()
+                .uri(uriBuilder -> uriBuilder.path(PROFILE_ENDPOINT)
+                        .queryParam("symbol", symbol)
+                        .queryParam("apikey", "2641e2a920c342399c652aec247ec866")
+                        .build())
+                .retrieve()
+                .bodyToMono(StockProfile.class)
+                .flatMap(profile -> {
+                    Mono<StockProfile> error = handleIfError(profile, symbol);
+                    if (error != null) {
+                        return error;
+                    }
+                    return Mono.just(profile);
                 })
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
                         .filter(throwable -> throwable instanceof LimitExceededException));

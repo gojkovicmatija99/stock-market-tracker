@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, LineData, HistogramData } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, CandlestickData, Time, HistogramData } from 'lightweight-charts';
 import { MarketData, marketDataService } from '../services/marketDataService';
 import { TimeInterval } from './Watchlist';
-import Header from './Header';
+import { stockService } from '../services/stockService';
 
 interface ChartProps {
   symbol: string;
@@ -11,25 +11,15 @@ interface ChartProps {
   onSymbolChange: (symbol: string) => void;
 }
 
-type ChartType = 'candlestick' | 'line';
-
-const parseData = (data: MarketData, chartType: ChartType): CandlestickData | LineData => {
+const parseData = (data: MarketData): CandlestickData => {
   const timestamp = Math.floor(new Date(data.datetime.replace(' ', 'T')).getTime() / 1000) as Time;
-  
-  if (chartType === 'candlestick') {
-    return {
-      time: timestamp,
-      open: parseFloat(data.open),
-      high: parseFloat(data.high),
-      low: parseFloat(data.low),
-      close: parseFloat(data.close)
-    };
-  } else {
-    return {
-      time: timestamp,
-      value: parseFloat(data.close)
-    };
-  }
+  return {
+    time: timestamp,
+    open: parseFloat(data.open),
+    high: parseFloat(data.high),
+    low: parseFloat(data.low),
+    close: parseFloat(data.close)
+  };
 };
 
 const parseVolumeData = (data: MarketData): HistogramData => {
@@ -43,11 +33,38 @@ const parseVolumeData = (data: MarketData): HistogramData => {
 const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line"> | null>(null);
+  const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const websocketRef = useRef<WebSocket | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [chartType, setChartType] = useState<ChartType>('candlestick');
+  const [currentPrice, setCurrentPrice] = useState<number | null>(null);
+  const [stockInfo, setStockInfo] = useState<{
+    symbol: string;
+    name: string;
+    exchange: string;
+    mic_code: string;
+    country: string;
+    type: string;
+  } | null>(null);
+
+  // Load stock info and current price
+  useEffect(() => {
+    const loadStockData = async () => {
+      try {
+        const [info, price] = await Promise.all([
+          stockService.getStockInfo(symbol),
+          stockService.getCurrentPrice(symbol)
+        ]);
+        setStockInfo(info);
+        setCurrentPrice(price);
+      } catch (err) {
+        console.error('Error loading stock data:', err);
+        setStockInfo(null);
+        setCurrentPrice(null);
+      }
+    };
+    loadStockData();
+  }, [symbol]);
 
   // Initialize chart
   useEffect(() => {
@@ -89,31 +106,18 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
       },
     });
 
-    // Create initial series based on chart type
-    const createSeries = () => {
-      if (chartType === 'candlestick') {
-        return chartInstance.addCandlestickSeries({
-          upColor: '#26a69a',
-          downColor: '#ef5350',
-          borderVisible: false,
-          wickUpColor: '#26a69a',
-          wickDownColor: '#ef5350',
-          priceFormat: {
-            type: 'price',
-            precision: 2,
-          },
-        });
-      } else {
-        return chartInstance.addLineSeries({
-          color: '#26a69a',
-          lineWidth: 2,
-          priceFormat: {
-            type: 'price',
-            precision: 2,
-          },
-        });
-      }
-    };
+    // Create candlestick series
+    const candlestickSeries = chartInstance.addCandlestickSeries({
+      upColor: '#26a69a',
+      downColor: '#ef5350',
+      borderVisible: false,
+      wickUpColor: '#26a69a',
+      wickDownColor: '#ef5350',
+      priceFormat: {
+        type: 'price',
+        precision: 2,
+      },
+    });
 
     // Create volume series
     const volumeSeries = chartInstance.addHistogramSeries({
@@ -144,7 +148,7 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
       autoScale: true,
     });
 
-    seriesRef.current = createSeries();
+    seriesRef.current = candlestickSeries;
     volumeSeriesRef.current = volumeSeries;
     chartRef.current = chartInstance;
 
@@ -172,7 +176,7 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
       websocketRef.current?.close();
       chartInstance.remove();
     };
-  }, [chartType]);
+  }, []);
 
   // Load data and setup websocket
   useEffect(() => {
@@ -184,7 +188,7 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
 
       try {
         const data = await marketDataService.getHistoricalData(symbol, interval);
-        const parsedData = data.map(d => parseData(d, chartType));
+        const parsedData = data.map(parseData);
         const parsedVolumeData = data.map(parseVolumeData);
         seriesRef.current.setData(parsedData);
         volumeSeriesRef.current.setData(parsedVolumeData);
@@ -211,7 +215,7 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
       websocketRef.current = await marketDataService.subscribeToRealtimeData(
         symbol,
         (data) => {
-          seriesRef.current?.update(parseData(data, chartType));
+          seriesRef.current?.update(parseData(data));
           volumeSeriesRef.current?.update(parseVolumeData(data));
         }
       );
@@ -223,28 +227,196 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
     return () => {
       websocketRef.current?.close();
     };
-  }, [symbol, interval, onLoadingChange, chartType]);
+  }, [symbol, interval, onLoadingChange]);
 
-  const handleChartTypeChange = (type: ChartType) => {
-    setChartType(type);
+  const handleIntervalChange = async (newInterval: TimeInterval) => {
+    onLoadingChange(true);
+    setError(null);
+
+    try {
+      const data = await marketDataService.getHistoricalData(symbol, newInterval);
+      const parsedData = data.map(parseData);
+      const parsedVolumeData = data.map(parseVolumeData);
+      
+      if (seriesRef.current && volumeSeriesRef.current) {
+        seriesRef.current.setData(parsedData);
+        volumeSeriesRef.current.setData(parsedVolumeData);
+        
+        // Fit content after data is loaded
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load historical data:', error);
+      setError('Failed to load chart data. Please try again.');
+    } finally {
+      onLoadingChange(false);
+    }
   };
 
   return (
-    <div className="relative w-full">
-      <Header 
-        symbol={symbol}
-        onSymbolChange={onSymbolChange}
-      />
-      <div className="container mx-auto px-4">
-        <div className="h-[600px]">
-          <div ref={chartContainerRef} className="w-full h-full" />
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
-                <p className="text-red-500">{error}</p>
-              </div>
+    <div className="flex flex-col">
+      <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4 mb-4">
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold text-tradingview-text">
+                {stockInfo?.name || 'Loading...'}
+              </h2>
+              <span className="text-xl text-tradingview-text/80">
+                ({stockInfo?.symbol || symbol})
+              </span>
             </div>
-          )}
+            <div className="text-2xl font-bold text-tradingview-text">
+              {currentPrice !== null ? `$${currentPrice.toFixed(2)}` : 'Loading...'}
+            </div>
+          </div>
+          <div className="flex items-center space-x-6 text-sm">
+            <div className="flex items-center space-x-2">
+              <span className="text-tradingview-text/60">Exchange:</span>
+              <span className="text-tradingview-text">{stockInfo?.exchange || '-'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-tradingview-text/60">MIC Code:</span>
+              <span className="text-tradingview-text">{stockInfo?.mic_code || '-'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-tradingview-text/60">Country:</span>
+              <span className="text-tradingview-text">{stockInfo?.country || '-'}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-tradingview-text/60">Type:</span>
+              <span className="text-tradingview-text">{stockInfo?.type || '-'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4 mb-4">
+        <div ref={chartContainerRef} className="w-full h-full" />
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
+              <p className="text-red-500">{error}</p>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
+        <div className="flex items-center space-x-2">
+          <span className="text-tradingview-text/80">Interval:</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleIntervalChange('1min')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '1min'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              1m
+            </button>
+            <button
+              onClick={() => handleIntervalChange('5min')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '5min'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              5m
+            </button>
+            <button
+              onClick={() => handleIntervalChange('15min')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '15min'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              15m
+            </button>
+            <button
+              onClick={() => handleIntervalChange('30min')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '30min'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              30m
+            </button>
+            <button
+              onClick={() => handleIntervalChange('45min')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '45min'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              45m
+            </button>
+            <button
+              onClick={() => handleIntervalChange('1h')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '1h'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              1h
+            </button>
+            <button
+              onClick={() => handleIntervalChange('2h')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '2h'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              2h
+            </button>
+            <button
+              onClick={() => handleIntervalChange('4h')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '4h'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              4h
+            </button>
+            <button
+              onClick={() => handleIntervalChange('1day')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '1day'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              1d
+            </button>
+            <button
+              onClick={() => handleIntervalChange('1week')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '1week'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              1w
+            </button>
+            <button
+              onClick={() => handleIntervalChange('1month')}
+              className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                interval === '1month'
+                  ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                  : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+              }`}
+            >
+              1M
+            </button>
+          </div>
         </div>
       </div>
     </div>

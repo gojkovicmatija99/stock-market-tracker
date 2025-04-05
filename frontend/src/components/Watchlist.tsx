@@ -2,18 +2,7 @@ import { useEffect, useState } from 'react';
 import { SymbolData, marketDataService } from '../services/marketDataService';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
-export type TimeInterval = 
-  | '1min'
-  | '5min'
-  | '15min'
-  | '30min'
-  | '45min'
-  | '1h'
-  | '2h'
-  | '4h'
-  | '1day'
-  | '1week'
-  | '1month';
+export type TimeInterval = '1min' | '5min' | '15min' | '30min' | '45min' | '1h' | '2h' | '4h' | '1day' | '1week' | '1month';
 
 interface WatchlistItemProps {
   symbol: string;
@@ -27,7 +16,7 @@ interface WatchlistItemProps {
   onSelect: (symbol: string) => void;
 }
 
-const INTERVALS: TimeInterval[] = [
+const intervals: TimeInterval[] = [
   '1min',
   '5min',
   '15min',
@@ -86,8 +75,9 @@ const Watchlist = () => {
   const [refreshingSymbols, setRefreshingSymbols] = useState<Set<string>>(new Set());
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<TimeInterval>('15min');
-
-  const symbols = ['SPX', 'NDQ', 'DJI', 'VIX', 'TSLA', 'NFLX'];
+  const [symbols, setSymbols] = useState<string[]>([]);
+  const [newSymbol, setNewSymbol] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleRefresh = async (symbol: string) => {
     if (refreshingSymbols.has(symbol)) return;
@@ -182,7 +172,7 @@ const Watchlist = () => {
           onChange={(e) => setSelectedInterval(e.target.value as TimeInterval)}
           className="bg-tradingview-bg text-tradingview-text border border-tradingview-border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          {INTERVALS.map(interval => (
+          {intervals.map(interval => (
             <option key={interval} value={interval}>
               {interval}
             </option>

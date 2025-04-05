@@ -69,6 +69,29 @@ class AuthService {
       'Content-Type': 'application/json',
     };
   }
+
+  async refreshToken(): Promise<void> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh token');
+    }
+
+    const data = await response.json();
+    localStorage.setItem('token', data.access_token);
+    localStorage.setItem('refreshToken', data.refresh_token);
+  }
 }
 
 export const authService = new AuthService(); 
