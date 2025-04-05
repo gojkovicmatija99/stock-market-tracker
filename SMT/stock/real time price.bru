@@ -1,0 +1,15 @@
+meta {
+  name: real time price
+  type: http
+  seq: 2
+}
+
+get {
+  url: http://localhost:8082/market/prices/AAPL
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
