@@ -57,6 +57,7 @@ class AuthService {
 
   isAuthenticated(): boolean {
     const token = this.getToken();
+    console.log("tkn" + token)
     return !!token;
   }
 

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Chart from './components/Chart';
 import Transactions from './components/Transactions';
 import Portfolio from './components/Portfolio';
 import Header from './components/Header';
 import { TimeInterval } from './components/Watchlist';
 import Login from './components/Login';
+import { authService } from './services/authService';
 
 const SYMBOLS = [
   { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', mic_code: 'XNAS', country: 'US', type: 'Common Stock' },
@@ -17,13 +18,19 @@ function App() {
   const [interval, setInterval] = useState<TimeInterval>('15min');
   const [isLoading, setIsLoading] = useState(false);
   const [currentPrice, setCurrentPrice] = useState(0);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    // Check authentication status when component mounts
+    setIsAuthenticated(authService.isAuthenticated());
+  }, []);
 
   const handleSymbolChange = (newSymbol: string) => {
     setSymbol(newSymbol);
   };
 
   const handleLogout = () => {
+    authService.logout();
     setIsAuthenticated(false);
   };
 

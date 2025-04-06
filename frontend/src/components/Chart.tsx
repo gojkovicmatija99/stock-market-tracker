@@ -49,21 +49,31 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
 
   // Load stock info and current price
   useEffect(() => {
+    let isMounted = true;
+
     const loadStockData = async () => {
       try {
         const [info, price] = await Promise.all([
           stockService.getStockInfo(symbol),
           stockService.getCurrentPrice(symbol)
         ]);
-        setStockInfo(info);
-        setCurrentPrice(price);
+        if (isMounted) {
+          setStockInfo(info);
+          setCurrentPrice(price);
+        }
       } catch (err) {
         console.error('Error loading stock data:', err);
-        setStockInfo(null);
-        setCurrentPrice(null);
+        if (isMounted) {
+          setStockInfo(null);
+          setCurrentPrice(null);
+        }
       }
     };
     loadStockData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [symbol]);
 
   // Initialize chart
@@ -180,30 +190,7 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
 
   // Load data and setup websocket
   useEffect(() => {
-    const loadHistoricalData = async () => {
-      if (!seriesRef.current || !volumeSeriesRef.current) return;
-      
-      onLoadingChange(true);
-      setError(null);
-
-      try {
-        const data = await marketDataService.getHistoricalData(symbol, interval);
-        const parsedData = data.map(parseData);
-        const parsedVolumeData = data.map(parseVolumeData);
-        seriesRef.current.setData(parsedData);
-        volumeSeriesRef.current.setData(parsedVolumeData);
-        
-        // Fit content after data is loaded
-        if (chartRef.current) {
-          chartRef.current.timeScale().fitContent();
-        }
-      } catch (error) {
-        console.error('Failed to load historical data:', error);
-        setError('Failed to load chart data. Please try again.');
-      } finally {
-        onLoadingChange(false);
-      }
-    };
+    let isMounted = true;
 
     const setupWebSocket = async () => {
       if (!seriesRef.current || !volumeSeriesRef.current) return;
@@ -215,19 +202,22 @@ const Chart = ({ symbol, interval, onLoadingChange, onSymbolChange }: ChartProps
       websocketRef.current = await marketDataService.subscribeToRealtimeData(
         symbol,
         (data) => {
-          seriesRef.current?.update(parseData(data));
-          volumeSeriesRef.current?.update(parseVolumeData(data));
+          if (isMounted) {
+            seriesRef.current?.update(parseData(data));
+            volumeSeriesRef.current?.update(parseVolumeData(data));
+          }
         }
       );
     };
 
-    loadHistoricalData();
+    handleIntervalChange(interval);
     setupWebSocket();
 
     return () => {
+      isMounted = false;
       websocketRef.current?.close();
     };
-  }, [symbol, interval, onLoadingChange]);
+  }, [symbol, interval]);
 
   const handleIntervalChange = async (newInterval: TimeInterval) => {
     onLoadingChange(true);

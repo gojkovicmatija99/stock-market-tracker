@@ -133,8 +133,7 @@ class StockService {
 
       const response = await fetch(`${BACKEND_URL}/market/stocks/${symbol}`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -143,41 +142,22 @@ class StockService {
       }
 
       const data = await response.json();
-      console.log('Stock info response:', data); // Debug log
-
-      // Check if we have the required data
       if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('Invalid response format');
+        throw new Error('Invalid stock info response');
       }
 
-      // Find the primary listing (NASDAQ)
-      const primaryListing = data.find(stock => stock.exchange === 'NASDAQ') || data[0];
-
-      // Map the data with fallbacks
-      const stockInfo: StockInfo = {
-        symbol: primaryListing.symbol || symbol,
-        name: primaryListing.name || 'Unknown',
-        exchange: primaryListing.exchange || 'Unknown',
-        mic_code: primaryListing.mic_code || 'Unknown',
-        country: primaryListing.country || 'Unknown',
-        type: primaryListing.type || 'Unknown'
+      // Return the first stock info from the array
+      return {
+        symbol: data[0].symbol,
+        name: data[0].name,
+        exchange: data[0].exchange,
+        mic_code: data[0].mic_code,
+        country: data[0].country,
+        type: data[0].type
       };
-
-      // Log the mapped data for debugging
-      console.log('Mapped stock info:', stockInfo);
-      
-      return stockInfo;
     } catch (error) {
       console.error('Error fetching stock info:', error);
-      // Return default values instead of throwing
-      return {
-        symbol: symbol,
-        name: 'Unknown',
-        exchange: 'Unknown',
-        mic_code: 'Unknown',
-        country: 'Unknown',
-        type: 'Unknown'
-      };
+      throw error;
     }
   }
 
