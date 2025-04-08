@@ -7,12 +7,27 @@ interface LoginResponse {
   };
 }
 
+type AuthChangeListener = (isAuthenticated: boolean) => void;
+
 class AuthService {
   private baseUrl: string;
   private tokenKey = 'jwt_token';
+  private listeners: Set<AuthChangeListener> = new Set();
 
   constructor() {
     this.baseUrl = 'http://localhost:8081';
+  }
+
+  subscribe(listener: AuthChangeListener): void {
+    this.listeners.add(listener);
+  }
+
+  unsubscribe(listener: AuthChangeListener): void {
+    this.listeners.delete(listener);
+  }
+
+  private notifyListeners(isAuthenticated: boolean): void {
+    this.listeners.forEach(listener => listener(isAuthenticated));
   }
 
   async login(username: string, password: string): Promise<LoginResponse> {
@@ -35,6 +50,7 @@ class AuthService {
       const data = await response.json();
       console.log('Login response:', data);
       this.setToken(data.access_token);
+      this.notifyListeners(true);
       return data;
     } catch (error) {
       console.error('Login error:', error);
@@ -44,6 +60,7 @@ class AuthService {
 
   logout(): void {
     localStorage.removeItem(this.tokenKey);
+    this.notifyListeners(false);
   }
 
   getToken(): string | null {
@@ -90,8 +107,9 @@ class AuthService {
     }
 
     const data = await response.json();
-    localStorage.setItem('token', data.access_token);
+    this.setToken(data.access_token);
     localStorage.setItem('refreshToken', data.refresh_token);
+    this.notifyListeners(true);
   }
 }
 

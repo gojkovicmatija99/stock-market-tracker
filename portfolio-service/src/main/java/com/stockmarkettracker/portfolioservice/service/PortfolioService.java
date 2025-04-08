@@ -81,6 +81,11 @@ public class PortfolioService {
                 .flatMapMany(tuple -> {
                     List<Transaction> transactions = tuple.getT1();
                     Map<String, TimeSeriesData> timeSeriesDataMap = tuple.getT2();
+                    System.out.println("printing timeSeriesDataMap");
+                    for (String keys : timeSeriesDataMap.keySet())
+{
+   System.out.println(keys);
+}
 
                     Map<String, List<Transaction>> groupedBySymbol = groupTransactionsBySymbol(transactions);
 
@@ -91,7 +96,7 @@ public class PortfolioService {
                         Map<String, Holding> holdingsMap = new HashMap<>();
                         for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
                             String symbol = entry.getKey();
-
+                            System.out.println(symbol);
                             if (groupedBySymbol.containsKey(symbol)) {
                                 double totalAmount = 0;
                                 double totalPrice = 0;
@@ -112,7 +117,8 @@ public class PortfolioService {
                             }
 
                         }
-                        portfolio.setDatetime(timeSeriesDataMap.get(0).getValues().get(i).getDatetime());
+                        // TODO: FIX HARDCODE
+                        //portfolio.setDatetime(timeSeriesDataMap.get("AAPL").getValues().get(i).getDatetime());
                         portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
                         portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
                         portfolioList.add(portfolio);
@@ -145,5 +151,4 @@ public class PortfolioService {
                 )
                 .collectMap(Map.Entry::getKey, Map.Entry::getValue);
     }
-
 }

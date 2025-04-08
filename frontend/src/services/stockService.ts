@@ -1,20 +1,7 @@
 import { authService } from './authService';
 
-const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your API key
-const BASE_URL = 'https://www.alphavantage.co/query';
-const BACKEND_URL = 'http://localhost:8082';
-
 interface StockData {
   price: number;
-}
-
-interface StockSearchResult {
-  symbol: string;
-  name: string;
-  exchange: string;
-  mic_code: string;
-  country: string;
-  type: string;
 }
 
 interface StockInfo {
@@ -26,6 +13,17 @@ interface StockInfo {
   type: string;
 }
 
+interface StockSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string;
+  mic_code: string;
+  country: string;
+  type: string;
+}
+
+const BACKEND_URL = 'http://localhost:8082';
+
 class StockService {
   async getStockData(symbol: string): Promise<StockData> {
     try {
@@ -34,39 +32,25 @@ class StockService {
         throw new Error('No authentication token available');
       }
 
-      // First try our backend
-      try {
-        const response = await fetch(`${BACKEND_URL}/market/stocks/${symbol}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
+      const response = await fetch(`http://localhost:8082/market/stocks/${symbol}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            price: data.price
-          };
-        }
-      } catch (error) {
-        console.log('Backend fetch failed, falling back to Alpha Vantage');
+      if (response.status === 401) {
+        authService.logout();
+        throw new Error('Authentication failed');
       }
-
-      // Fallback to Alpha Vantage
-      const response = await fetch(
-        `${BASE_URL}?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${API_KEY}`
-      );
 
       if (!response.ok) {
         throw new Error('Failed to fetch stock data');
       }
 
       const data = await response.json();
-      const quote = data['Global Quote'];
-      
       return {
-        price: parseFloat(quote['05. price'])
+        price: data.price
       };
     } catch (error) {
       console.error('Error fetching stock data:', error);
@@ -74,50 +58,26 @@ class StockService {
     }
   }
 
-  async searchStocks(symbol: string): Promise<StockSearchResult[]> {
+  async searchStocks(query: string): Promise<StockSearchResult[]> {
     try {
       const token = authService.getToken();
       if (!token) {
         throw new Error('No authentication token available');
       }
 
-      // First try our backend
-      try {
-        const response = await fetch(`${BACKEND_URL}/market/stocks/${symbol}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          return data;
+      const response = await fetch(`${BACKEND_URL}/market/stocks/${encodeURIComponent(query)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
-      } catch (error) {
-        console.log('Backend search failed, falling back to Alpha Vantage');
-      }
-
-      // Fallback to Alpha Vantage
-      const response = await fetch(
-        `${BASE_URL}?function=SYMBOL_SEARCH&keywords=${symbol}&apikey=${API_KEY}`
-      );
+      });
 
       if (!response.ok) {
         throw new Error('Failed to search stocks');
       }
 
       const data = await response.json();
-      const matches = data.bestMatches || [];
-
-      return matches.map((match: any) => ({
-        symbol: match['1. symbol'],
-        name: match['2. name'],
-        exchange: match['4. region'],
-        mic_code: match['3. type'],
-        country: match['4. region'],
-        type: match['3. type']
-      }));
+      return data;
     } catch (error) {
       console.error('Error searching stocks:', error);
       throw error;
@@ -131,30 +91,24 @@ class StockService {
         throw new Error('No authentication token available');
       }
 
-      const response = await fetch(`${BACKEND_URL}/market/stocks/${symbol}`, {
+      const response = await fetch(`http://localhost:8082/market/stocks/${symbol}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (response.status === 401) {
+        authService.logout();
+        throw new Error('Authentication failed');
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch stock info');
       }
 
       const data = await response.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('Invalid stock info response');
-      }
-
-      // Return the first stock info from the array
-      return {
-        symbol: data[0].symbol,
-        name: data[0].name,
-        exchange: data[0].exchange,
-        mic_code: data[0].mic_code,
-        country: data[0].country,
-        type: data[0].type
-      };
+      return data;
     } catch (error) {
       console.error('Error fetching stock info:', error);
       throw error;

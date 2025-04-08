@@ -6,6 +6,8 @@ import { TimeInterval } from './Watchlist';
 import { stockService } from '../services/stockService';
 import Header from './Header';
 import { authService } from '../services/authService';
+import Portfolio from './Portfolio';
+import Transactions from './Transactions';
 
 interface StockInfo {
   symbol: string;
@@ -52,7 +54,7 @@ const Stock = () => {
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/');
+    navigate('/login');
   };
 
   // Load stock info and current price
@@ -237,7 +239,7 @@ const Stock = () => {
           return;
         }
 
-        const response = await fetch('http://localhost:8083/stocks', {
+        const response = await fetch('http://localhost:8082/market/stocks', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -300,84 +302,106 @@ const Stock = () => {
       />
       
       <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col">
-          <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4 mb-4">
-            <div className="flex flex-col space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-2xl font-bold text-tradingview-text">
-                    {stockInfo?.name || 'Loading...'}
-                  </h2>
-                  <span className="text-xl text-tradingview-text/80">
-                    ({stockInfo?.symbol || symbol})
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-tradingview-text">
-                  {currentPrice !== null ? `$${currentPrice.toFixed(2)}` : 'Loading...'}
+        <div className="flex gap-6">
+          <div className="flex-1">
+            <div className="flex flex-col space-y-6">
+              {/* Stock Info Panel */}
+              <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-2xl font-bold text-tradingview-text">
+                        {stockInfo?.name || 'Loading...'}
+                      </h2>
+                      <span className="text-xl text-tradingview-text/80">
+                        ({stockInfo?.symbol || symbol})
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-tradingview-text">
+                      {currentPrice !== null ? `$${currentPrice.toFixed(2)}` : 'Loading...'}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-6 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-tradingview-text/60">Exchange:</span>
+                      <span className="text-tradingview-text">{stockInfo?.exchange || '-'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-tradingview-text/60">MIC Code:</span>
+                      <span className="text-tradingview-text">{stockInfo?.mic_code || '-'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-tradingview-text/60">Country:</span>
+                      <span className="text-tradingview-text">{stockInfo?.country || '-'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-tradingview-text/60">Type:</span>
+                      <span className="text-tradingview-text">{stockInfo?.type || '-'}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center space-x-6 text-sm">
+
+              {/* Chart Panel */}
+              <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
+                <div ref={chartContainerRef} className="w-full h-[600px]" />
+                {error && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
+                      <p className="text-red-500">{error}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Interval Selection */}
+              <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
                 <div className="flex items-center space-x-2">
-                  <span className="text-tradingview-text/60">Exchange:</span>
-                  <span className="text-tradingview-text">{stockInfo?.exchange || '-'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-tradingview-text/60">MIC Code:</span>
-                  <span className="text-tradingview-text">{stockInfo?.mic_code || '-'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-tradingview-text/60">Country:</span>
-                  <span className="text-tradingview-text">{stockInfo?.country || '-'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-tradingview-text/60">Type:</span>
-                  <span className="text-tradingview-text">{stockInfo?.type || '-'}</span>
+                  <span className="text-tradingview-text/80">Interval:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: '1min', label: '1m' },
+                      { value: '5min', label: '5m' },
+                      { value: '15min', label: '15m' },
+                      { value: '30min', label: '30m' },
+                      { value: '45min', label: '45m' },
+                      { value: '1h', label: '1h' },
+                      { value: '2h', label: '2h' },
+                      { value: '4h', label: '4h' },
+                      { value: '1day', label: '1d' },
+                      { value: '1week', label: '1w' },
+                      { value: '1month', label: '1M' },
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        onClick={() => handleIntervalChange(value as TimeInterval)}
+                        className={`px-3 py-2 rounded-md transition-all duration-200 ${
+                          interval === value
+                            ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
+                            : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4 mb-4">
-            <div ref={chartContainerRef} className="w-full h-[600px]" />
-            {error && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2">
-                  <p className="text-red-500">{error}</p>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Right Sidebar */}
+          <div className="w-96 border-l border-tradingview-border bg-tradingview-panel rounded-lg flex flex-col">
+            {/* Portfolio Section */}
+            <div className="flex-1 border-b border-tradingview-border">
+              <Portfolio symbol={symbol} />
+            </div>
 
-          <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-tradingview-text/80">Interval:</span>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: '1min', label: '1m' },
-                  { value: '5min', label: '5m' },
-                  { value: '15min', label: '15m' },
-                  { value: '30min', label: '30m' },
-                  { value: '45min', label: '45m' },
-                  { value: '1h', label: '1h' },
-                  { value: '2h', label: '2h' },
-                  { value: '4h', label: '4h' },
-                  { value: '1day', label: '1d' },
-                  { value: '1week', label: '1w' },
-                  { value: '1month', label: '1M' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => handleIntervalChange(value as TimeInterval)}
-                    className={`px-3 py-2 rounded-md transition-all duration-200 ${
-                      interval === value
-                        ? 'bg-tradingview-accent text-white font-semibold shadow-lg shadow-tradingview-accent/30'
-                        : 'text-tradingview-text hover:bg-tradingview-border hover:text-white'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+            {/* Transactions Section */}
+            <div className="flex-1">
+              {currentPrice !== null && (
+                <Transactions symbol={symbol} currentPrice={currentPrice} />
+              )}
             </div>
           </div>
         </div>
