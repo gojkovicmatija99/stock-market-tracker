@@ -81,11 +81,17 @@ public class PortfolioService {
                 .flatMapMany(tuple -> {
                     List<Transaction> transactions = tuple.getT1();
                     Map<String, TimeSeriesData> timeSeriesDataMap = tuple.getT2();
-                    System.out.println("printing timeSeriesDataMap");
-                    for (String keys : timeSeriesDataMap.keySet())
-{
-   System.out.println(keys);
-}
+
+                    // Log the contents of timeSeriesDataMap
+                    System.out.println("TimeSeriesDataMap contents:");
+                    for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
+                        String symbol = entry.getKey();
+                        TimeSeriesData data = entry.getValue();
+                        System.out.println("Symbol: " + symbol + ", TimeSeriesData: " + (data != null ? "Present" : "Null"));
+                        if (data != null) {
+                            System.out.println("Values: " + data.getValues());
+                        }
+                    }
 
                     Map<String, List<Transaction>> groupedBySymbol = groupTransactionsBySymbol(transactions);
 
@@ -94,31 +100,48 @@ public class PortfolioService {
                     for (int i = 0; i < MAX_HISTORY_POINTS; i++) {
                         Portfolio portfolio = new Portfolio();
                         Map<String, Holding> holdingsMap = new HashMap<>();
+                        String portfolioDateTime = null;
+                        
                         for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
                             String symbol = entry.getKey();
-                            System.out.println(symbol);
+                            TimeSeriesData timeSeriesData = entry.getValue();
+
+                            // Log the symbol and whether the timeSeriesData is null
+                            System.out.println("Symbol: " + symbol + ", TimeSeriesData: " + (timeSeriesData != null ? "Present" : "Null"));
+
                             if (groupedBySymbol.containsKey(symbol)) {
-                                double totalAmount = 0;
-                                double totalPrice = 0;
-                                for (Transaction transaction : groupedBySymbol.get(symbol)) {
-                                    if (transaction.getType() == TransactionType.BUY) {
-                                        totalAmount += transaction.getAmount();
-                                        totalPrice += transaction.getAmount() * transaction.getPrice();
-                                    } else if (transaction.getType() == TransactionType.SELL) {
-                                        totalAmount -= transaction.getAmount();
-                                        totalPrice -= transaction.getAmount() * transaction.getPrice();
+                                if (timeSeriesData != null && timeSeriesData.getValues() != null && !timeSeriesData.getValues().isEmpty()) {
+                                    // Set the datetime from the first valid time series data
+                                    if (portfolioDateTime == null) {
+                                        String datetimeStr = timeSeriesData.getValues().get(i).getDatetime().replace(" ", "T");
+                                        portfolioDateTime = datetimeStr;
                                     }
+                                    
+                                    double totalAmount = 0;
+                                    double totalPrice = 0;
+                                    for (Transaction transaction : groupedBySymbol.get(symbol)) {
+                                        if (transaction.getType() == TransactionType.BUY) {
+                                            totalAmount += transaction.getAmount();
+                                            totalPrice += transaction.getAmount() * transaction.getPrice();
+                                        } else if (transaction.getType() == TransactionType.SELL) {
+                                            totalAmount -= transaction.getAmount();
+                                            totalPrice -= transaction.getAmount() * transaction.getPrice();
+                                        }
+                                    }
+
+                                    double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
+                                    double historicalPrice = Double.parseDouble(timeSeriesData.getValues().get(i).getOpen());
+                                    holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
+                                } else {
+                                    // Handle the case where timeSeriesData is null or has no values
+                                    System.out.println("No time series data available for symbol: " + symbol);
                                 }
-
-                                double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
-
-                                double historicalPrice = Double.parseDouble(timeSeriesDataMap.get(symbol).getValues().get(i).getOpen());
-                                holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
+                            } else {
+                                System.out.println("Symbol not found in grouped transactions: " + symbol);
                             }
-
                         }
-                        // TODO: FIX HARDCODE
-                        //portfolio.setDatetime(timeSeriesDataMap.get("AAPL").getValues().get(i).getDatetime());
+                        
+                        portfolio.setDatetime(portfolioDateTime);
                         portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
                         portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
                         portfolioList.add(portfolio);

@@ -61,7 +61,7 @@ const Dashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('AAPL');
   const [symbols, setSymbols] = useState<Stock[]>([]);
-  
+
   const accountSummary: AccountSummary = {
     accountId: 'U12670526',
     settledCash: 50.06,
@@ -244,11 +244,6 @@ const Dashboard = () => {
                       </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Chart Area */}
-                <div className="h-64 bg-tradingview-bg border border-tradingview-border rounded-lg mb-8 flex items-center justify-center text-tradingview-text/60">
-                  Chart will be implemented here
                 </div>
 
                 {/* Portfolio Positions */}
