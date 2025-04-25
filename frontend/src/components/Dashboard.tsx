@@ -3,6 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowUpIcon, ClipboardIcon } from '@heroicons/react/24/solid';
 import { authService } from '../services/authService';
 import Header from './Header';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ChartOptions
+} from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface AccountSummary {
   accountId: string;
@@ -36,6 +59,12 @@ interface Portfolio {
   totalProfitLoss: number;
 }
 
+interface PortfolioHistoryItem {
+  datetime: string;
+  holdingList: Holding[];
+  totalProfitLoss: number;
+}
+
 interface NewsItem {
   title: string;
   source: string;
@@ -55,9 +84,11 @@ interface Stock {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState<'Dashboard' | 'Positions' | 'Performance' | 'Balances' | 'Portfolio News'>('Dashboard');
-  const [selectedTimeframe, setSelectedTimeframe] = useState<'7D' | 'MTD' | 'YTD' | '1Y' | 'All'>('All');
+  const [selectedInterval, setSelectedInterval] = useState<string>('15min');
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [portfolioHistory, setPortfolioHistory] = useState<PortfolioHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('AAPL');
   const [symbols, setSymbols] = useState<Stock[]>([]);
@@ -123,6 +154,7 @@ const Dashboard = () => {
     fetchSymbols();
   }, []);
 
+  // Fetch portfolio data
   useEffect(() => {
     const fetchPortfolio = async () => {
       setIsLoading(true);
@@ -169,8 +201,126 @@ const Dashboard = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  // Fetch portfolio history data
+  useEffect(() => {
+    const fetchPortfolioHistory = async () => {
+      setIsHistoryLoading(true);
+      try {
+        const token = authService.getToken();
+        if (!token) {
+          authService.logout();
+          return;
+        }
+
+        const response = await fetch(`http://localhost:8083/portfolio/history?interval=${selectedInterval}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.status === 401) {
+          authService.logout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch portfolio history');
+        }
+
+        const data = await response.json();
+        setPortfolioHistory(data);
+      } catch (err) {
+        console.error('Failed to fetch portfolio history:', err);
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    };
+
+    fetchPortfolioHistory();
+  }, [selectedInterval]);
+
   const handleSymbolClick = (symbol: string) => {
     navigate(`/stock/${symbol}`);
+  };
+
+  // Prepare chart data
+  const chartData = {
+    labels: portfolioHistory.map(item => {
+      const date = new Date(item.datetime);
+      
+      // Format the date based on the selected interval
+      if (selectedInterval === '1day' || selectedInterval === '1week' || selectedInterval === '1month') {
+        // For longer intervals, show date
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      } else {
+        // For shorter intervals, show time
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }).reverse(),
+    datasets: [
+      {
+        label: 'Portfolio Value',
+        data: portfolioHistory.map(item => item.totalProfitLoss).reverse(),
+        borderColor: 'rgb(75, 192, 192)',
+        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+        tension: 0.1,
+      },
+    ],
+  };
+
+  const chartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: 'rgba(255, 255, 255, 0.7)',
+        },
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        callbacks: {
+          title: (tooltipItems) => {
+            const index = tooltipItems[0].dataIndex;
+            const item = portfolioHistory[portfolioHistory.length - 1 - index];
+            const date = new Date(item.datetime);
+            return date.toLocaleString([], { 
+              month: 'short', 
+              day: 'numeric', 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+          },
+          label: (context) => {
+            const index = context.dataIndex;
+            const item = portfolioHistory[portfolioHistory.length - 1 - index];
+            return `Portfolio Value: €${item.totalProfitLoss.toFixed(2)}`;
+          }
+        }
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.7)',
+        },
+      },
+      y: {
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.7)',
+          callback: (value) => `€${value}`
+        },
+      },
+    },
   };
 
   return (
@@ -184,65 +334,52 @@ const Dashboard = () => {
       
       <div className="container mx-auto">
         <div className="p-6">
-          <div className="grid grid-cols-4 gap-6">
-            {/* Left Column - Account Summary */}
+          <div className="grid grid-cols-1 gap-6">
+            {/* Main Content */}
             <div className="col-span-1">
-              <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-4">
-                <div className="space-y-3">
-                  {Object.entries({
-                    'Settled Cash': accountSummary.settledCash,
-                    'Unrealized P&L': accountSummary.unrealizedPL,
-                    'Realized P&L': accountSummary.realizedPL,
-                    'Maintenance Margin': accountSummary.maintenanceMargin,
-                    'Excess Liquidity': accountSummary.excessLiquidity,
-                    'Buying Power': accountSummary.buyingPower,
-                    'Dividends': accountSummary.dividends
-                  }).map(([label, value]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-tradingview-text/60">{label}</span>
-                      <span className={value > 0 ? 'text-green-500' : 'text-tradingview-text'}>
-                        {value.toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-tradingview-border">
-                  <div className="flex gap-2">
-                    <button className="flex-1 bg-tradingview-bg hover:bg-tradingview-border border border-tradingview-border rounded px-3 py-2 text-sm text-tradingview-text">Deposit</button>
-                    <button className="flex-1 bg-tradingview-bg hover:bg-tradingview-border border border-tradingview-border rounded px-3 py-2 text-sm text-tradingview-text">Withdraw</button>
-                    <button className="flex-1 bg-tradingview-bg hover:bg-tradingview-border border border-tradingview-border rounded px-3 py-2 text-sm text-tradingview-text">Statements</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Main Content */}
-            <div className="col-span-3">
               <div className="bg-tradingview-panel border border-tradingview-border rounded-lg p-6">
                 {/* Portfolio Value */}
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <div className="text-2xl font-semibold text-tradingview-text">7,496.09</div>
+                    <div className="text-2xl font-semibold text-tradingview-text">
+                      €{portfolio?.totalProfitLoss.toFixed(2) || '0.00'}
+                    </div>
                     <div className="flex items-center gap-1 text-green-500">
                       <ArrowUpIcon className="h-4 w-4" />
-                      <span>7,449.03</span>
+                      <span>Total P&L</span>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    {(['7D', 'MTD', 'YTD', '1Y', 'All'] as const).map((timeframe) => (
+                </div>
+
+                {/* Chart Area */}
+                <div className="mb-4">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {['1min', '5min', '15min', '30min', '45min', '1h', '2h', '4h', '1day', '1week', '1month'].map((interval) => (
                       <button
-                        key={timeframe}
-                        onClick={() => setSelectedTimeframe(timeframe)}
-                        className={`px-3 py-1 rounded ${
-                          selectedTimeframe === timeframe
+                        key={interval}
+                        onClick={() => setSelectedInterval(interval)}
+                        className={`px-2 py-1 text-xs rounded ${
+                          selectedInterval === interval
                             ? 'bg-blue-500/20 text-blue-500'
                             : 'text-tradingview-text/60 hover:bg-tradingview-border'
                         }`}
                       >
-                        {timeframe}
+                        {interval}
                       </button>
                     ))}
+                  </div>
+                  <div className="h-64 bg-tradingview-bg border border-tradingview-border rounded-lg">
+                    {isHistoryLoading ? (
+                      <div className="h-full flex items-center justify-center text-tradingview-text/60">
+                        Loading chart data...
+                      </div>
+                    ) : portfolioHistory.length > 0 ? (
+                      <Line data={chartData} options={chartOptions} />
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-tradingview-text/60">
+                        No chart data available
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -313,33 +450,6 @@ const Dashboard = () => {
                       No portfolio positions available
                     </div>
                   )}
-                </div>
-
-                {/* News Section */}
-                <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-semibold text-tradingview-text flex items-center gap-2">
-                      <span>🔥</span>
-                      Hot News
-                    </h2>
-                    <div className="flex items-center gap-4">
-                      <span className="text-tradingview-text/60">From Daily Overview News</span>
-                      <div className="flex items-center gap-2">
-                        <button className="text-tradingview-text/60 hover:text-tradingview-text">←</button>
-                        <span className="text-tradingview-text/60">1/12</span>
-                        <button className="text-tradingview-text/60 hover:text-tradingview-text">→</button>
-                      </div>
-                    </div>
-                  </div>
-                  {news.map((item) => (
-                    <div key={item.title} className="border-t border-tradingview-border py-4">
-                      <div className="text-sm text-tradingview-text/60">{item.source}</div>
-                      <div className="font-medium my-2 text-tradingview-text">{item.title}</div>
-                      <div className="text-sm text-tradingview-text/60">
-                        {item.timeAgo} • {item.readTime}
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>

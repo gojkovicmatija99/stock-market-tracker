@@ -1,43 +1,20 @@
 package com.stockmarkettracker.portfolioservice.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Portfolio {
     private String datetime;
     private List<Holding> holdingList;
+    private double totalPositionPrice;
     private double totalProfitLoss;
-
-    public Portfolio() {
-    }
-
-    public Portfolio(String datetime, List<Holding> holdingList, double totalProfitLoss) {
-        this.datetime = datetime;
-        this.holdingList = holdingList;
-        this.totalProfitLoss = totalProfitLoss;
-    }
-
-    public String getDatetime() {
-        return datetime;
-    }
-
-    public void setDatetime(String datetime) {
-        this.datetime = datetime;
-    }
-
-    public List<Holding> getHoldingList() {
-        return holdingList;
-    }
-
-    public void setHoldingList(List<Holding> holdingList) {
-        this.holdingList = holdingList;
-    }
-
-    public double getTotalProfitLoss() {
-        return totalProfitLoss;
-    }
-
-    public void setTotalProfitLoss(double totalProfitLoss) {
-        this.totalProfitLoss = totalProfitLoss;
-    }
 }

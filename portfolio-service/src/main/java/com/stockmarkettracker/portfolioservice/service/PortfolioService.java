@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
 @Service
 public class PortfolioService {
 
-    public static final int MAX_HISTORY_POINTS = 5;
+    // TODO: Make this dynamic based on the interval
+    public static final int MAX_HISTORY_POINTS = 10;
 
     @Resource
     private AuthHttpClient authHttpClient;
@@ -36,11 +37,12 @@ public class PortfolioService {
         String userId = authHttpClient.getUserSubject(authHeader);
         Flux<GroupedTransactionData> groupedTransactionFlux = transactionCustomRepository.getTransactionsGroupedBySymbol(userId);
         Flux<Holding> holdingFlux = buildHoldingsFromTransactions(authHeader, groupedTransactionFlux).onErrorResume(Mono::error);
-        return Mono.zip(holdingFlux.collectList(), calculateTotalProfitAndLoss(holdingFlux))
+        return Mono.zip(holdingFlux.collectList(), calculateTotalPrice(holdingFlux), calculateTotalProfitAndLoss(holdingFlux))
                 .map(tuple -> new Portfolio(
                         null,
                         tuple.getT1(),
-                        tuple.getT2()
+                        tuple.getT2(),
+                        tuple.getT3()
                 ));
     }
 
@@ -133,7 +135,6 @@ public class PortfolioService {
                                     double historicalPrice = Double.parseDouble(timeSeriesData.getValues().get(i).getOpen());
                                     holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
                                 } else {
-                                    // Handle the case where timeSeriesData is null or has no values
                                     System.out.println("No time series data available for symbol: " + symbol);
                                 }
                             } else {
@@ -157,6 +158,10 @@ public class PortfolioService {
     }
 
     public Mono<Double> calculateTotalProfitAndLoss(Flux<Holding> holdings) {
+        return holdings.map(Holding::getProfitLoss).reduce(0.0, Double::sum);
+    }
+
+    public  Mono<Double> calculateTotalPrice(Flux<Holding> holdings) {
         return holdings.map(Holding::getProfitLoss).reduce(0.0, Double::sum);
     }
 
