@@ -86,20 +86,24 @@ public class PortfolioService {
 
                     // Log the contents of timeSeriesDataMap
                     System.out.println("TimeSeriesDataMap contents:");
+                    int commonTimeSeriesSize = Integer.MAX_VALUE;
                     for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
                         String symbol = entry.getKey();
                         TimeSeriesData data = entry.getValue();
                         System.out.println("Symbol: " + symbol + ", TimeSeriesData: " + (data != null ? "Present" : "Null"));
                         if (data != null) {
                             System.out.println("Values: " + data.getValues());
+                            commonTimeSeriesSize = Math.min(commonTimeSeriesSize, data.getValues().size());
                         }
                     }
-
+                    System.out.println("Common time series size: " + commonTimeSeriesSize);
                     Map<String, List<Transaction>> groupedBySymbol = groupTransactionsBySymbol(transactions);
 
                     List<Portfolio> portfolioList = new ArrayList<>();
-
-                    for (int i = 0; i < MAX_HISTORY_POINTS; i++) {
+                    if (commonTimeSeriesSize == Integer.MAX_VALUE) {
+                        return Flux.empty();
+                    }
+                    for (int i = 0; i < commonTimeSeriesSize; i++) {
                         Portfolio portfolio = new Portfolio();
                         Map<String, Holding> holdingsMap = new HashMap<>();
                         String portfolioDateTime = null;
