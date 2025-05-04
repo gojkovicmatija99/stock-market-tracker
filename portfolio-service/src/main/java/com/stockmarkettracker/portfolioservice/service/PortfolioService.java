@@ -14,6 +14,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.text.SimpleDateFormat;
+import java.text.ParseException;
 
 @Service
 public class PortfolioService {
@@ -125,7 +127,25 @@ public class PortfolioService {
                                     
                                     double totalAmount = 0;
                                     double totalPrice = 0;
+                                    SimpleDateFormat dateFormatWithTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+                                    SimpleDateFormat dateFormatWithoutTime = new SimpleDateFormat("yyyy-MM-dd");
+                                    Date portfolioDate;
+                                    try {
+                                        try {
+                                            portfolioDate = dateFormatWithTime.parse(portfolioDateTime);
+                                        } catch (ParseException e) {
+                                            // If parsing with time fails, try without time
+                                            portfolioDate = dateFormatWithoutTime.parse(portfolioDateTime);
+                                        }
+                                    } catch (ParseException e) {
+                                        throw new RuntimeException("Failed to parse date: " + portfolioDateTime, e);
+                                    }
                                     for (Transaction transaction : groupedBySymbol.get(symbol)) {
+                                        // Only consider transactions that occurred before or at the current portfolio date
+                                        if (transaction.getDate().after(portfolioDate)) {
+                                            continue;
+                                        }
+
                                         if (transaction.getType() == TransactionType.BUY) {
                                             totalAmount += transaction.getAmount();
                                             totalPrice += transaction.getAmount() * transaction.getPrice();
@@ -137,6 +157,7 @@ public class PortfolioService {
 
                                     double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
                                     double historicalPrice = Double.parseDouble(timeSeriesData.getValues().get(i).getOpen());
+                                    // Always add the holding, even if totalAmount is 0
                                     holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
                                 } else {
                                     System.out.println("No time series data available for symbol: " + symbol);

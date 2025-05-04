@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { MagnifyingGlassIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 import { stockService } from '../services/stockService';
+import { useNavigate } from 'react-router-dom';
 
 interface Stock {
   symbol: string;
@@ -24,6 +25,7 @@ const Header = ({ selectedSymbol, onSymbolChange, symbols, onLogout }: HeaderPro
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const navigate = useNavigate();
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
@@ -61,7 +63,12 @@ const Header = ({ selectedSymbol, onSymbolChange, symbols, onLogout }: HeaderPro
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-bold text-tradingview-text">Stock Market Tracker</h1>
+            <h1 
+              className="text-2xl font-bold text-tradingview-text cursor-pointer hover:text-blue-500 transition-colors"
+              onClick={() => navigate('/dashboard')}
+            >
+              Stock Market Tracker
+            </h1>
             <div className="relative">
               <div className="relative">
                 <input
