@@ -1,19 +1,27 @@
 package com.stockmarkettracker.stockservice.data;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Setter
-@Getter
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EventPriceData {
-    public String event;
-    public String symbol;
-    public String currency;
-    public String exchange;
-    public double price;
-    public long timestamp;
+    @JsonProperty("symbol")
+    private String symbol;
+
+    @JsonProperty("price")
+    private String price;
+
+    @JsonProperty("timestamp")
+    private long timestamp;
+
+    @JsonProperty("volume")
+    private String volume;
+
+    @JsonProperty("change")
+    private String change;
+
+    @JsonProperty("change_percent")
+    private String changePercent;
 }

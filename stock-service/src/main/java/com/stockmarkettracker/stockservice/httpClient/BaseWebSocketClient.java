@@ -9,11 +9,19 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.reactive.socket.WebSocketMessage;
+import org.springframework.web.reactive.socket.WebSocketSession;
+import org.springframework.web.reactive.socket.client.WebSocketClient;
+import reactor.core.publisher.Sinks;
 
 import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 @Component
-public class BaseWebSocketClient {
+public abstract class BaseWebSocketClient {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseWebSocketClient.class);
 
@@ -25,11 +33,16 @@ public class BaseWebSocketClient {
     @Value("${twelvedata.api.key}")
     private String apiKey;
 
+    protected WebSocketClient webSocketClient;
+    protected Map<String, Sinks.Many<String>> messageHandlers = new ConcurrentHashMap<>();
+    protected Sinks.Many<String> messageSink;
+
     private final ReactorNettyWebSocketClient reactorNettyWebSocketClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BaseWebSocketClient() {
         this.reactorNettyWebSocketClient = new ReactorNettyWebSocketClient();
+        this.messageSink = Sinks.many().multicast().onBackpressureBuffer();
     }
 
     public Mono<Void> getPrice(String symbols) {
@@ -66,5 +79,41 @@ public class BaseWebSocketClient {
             return sendMessage.thenMany(receiveMessages)
                     .doOnError(error -> logger.error("WebSocket error: {}", error.getMessage(), error)).then(); // Handle WebSocket errors
         });
+    }
+
+    protected void connectToWebSocket(String url) {
+        log.info("Connecting to WebSocket at: {}", url);
+        webSocketClient.execute(URI.create(url), session -> {
+            session.receive()
+                    .map(WebSocketMessage::getPayloadAsText)
+                    .doOnNext(this::handleMessage)
+                    .subscribe();
+
+            return session.send(
+                    messageSink.asFlux()
+                            .map(session::textMessage)
+            );
+        }).subscribe();
+    }
+
+    protected abstract void handleMessage(String message);
+    public abstract void connect();
+
+    protected void send(String message) {
+        log.debug("Sending message: {}", message);
+        messageSink.tryEmitNext(message);
+    }
+
+    protected void broadcast(String message) {
+        log.debug("Broadcasting message: {}", message);
+        messageHandlers.values().forEach(sink -> sink.tryEmitNext(message));
+    }
+
+    public void onMessage(String type, Sinks.Many<String> sink) {
+        messageHandlers.put(type, sink);
+    }
+
+    public void removeMessageHandler(String type) {
+        messageHandlers.remove(type);
     }
 }
