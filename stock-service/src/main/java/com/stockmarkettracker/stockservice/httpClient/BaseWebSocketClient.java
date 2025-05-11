@@ -84,16 +84,26 @@ public abstract class BaseWebSocketClient {
     protected void connectToWebSocket(String url) {
         log.info("Connecting to WebSocket at: {}", url);
         webSocketClient.execute(URI.create(url), session -> {
+            log.info("WebSocket session established");
+            
             session.receive()
-                    .map(WebSocketMessage::getPayloadAsText)
-                    .doOnNext(this::handleMessage)
-                    .subscribe();
+                .doOnSubscribe(sub -> log.info("Subscribed to WebSocket receive"))
+                .doOnNext(message -> {
+                    log.info("Received WebSocket message: {}", message.getPayloadAsText());
+                    handleMessage(message.getPayloadAsText());
+                })
+                .doOnError(error -> log.error("WebSocket receive error: {}", error.getMessage()))
+                .subscribe();
 
             return session.send(
-                    messageSink.asFlux()
-                            .map(session::textMessage)
+                messageSink.asFlux()
+                    .doOnNext(msg -> log.info("Sending WebSocket message: {}", msg))
+                    .map(session::textMessage)
             );
-        }).subscribe();
+        }).subscribe(
+            null,
+            error -> log.error("WebSocket connection error: {}", error.getMessage())
+        );
     }
 
     protected abstract void handleMessage(String message);
@@ -110,10 +120,12 @@ public abstract class BaseWebSocketClient {
     }
 
     public void onMessage(String type, Sinks.Many<String> sink) {
+        log.info("Registering message handler for type: {}", type);
         messageHandlers.put(type, sink);
     }
 
     public void removeMessageHandler(String type) {
+        log.info("Removing message handler for type: {}", type);
         messageHandlers.remove(type);
     }
 }

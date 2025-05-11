@@ -6,6 +6,7 @@ import org.springframework.web.reactive.HandlerMapping;
 import org.springframework.web.reactive.config.EnableWebFlux;
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
 import org.springframework.web.reactive.socket.WebSocketHandler;
+import org.springframework.web.reactive.socket.server.support.WebSocketHandlerAdapter;
 
 import java.util.Map;
 
@@ -15,11 +16,17 @@ public class WebSocketConfig {
 
     @Bean
     public HandlerMapping webSocketMapping(ReactiveWebSocketHandler webSocketHandler) {
-        return new SimpleUrlHandlerMapping(Map.of("/ws", webSocketHandler), -1);
+        Map<String, WebSocketHandler> urlMap = Map.of(
+            "/ws", webSocketHandler,
+            "/ws/stock", webSocketHandler,
+            "/api/ws", webSocketHandler,
+            "/api/ws/stock", webSocketHandler
+        );
+        return new SimpleUrlHandlerMapping(urlMap, -1);
     }
 
     @Bean
-    public WebSocketHandler webSocketHandler() {
-        return new ReactiveWebSocketHandler();
+    public WebSocketHandlerAdapter handlerAdapter() {
+        return new WebSocketHandlerAdapter();
     }
 }

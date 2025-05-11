@@ -15,11 +15,15 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Service
 public class MarketService {
+
+    private static final Logger log = LoggerFactory.getLogger(MarketService.class);
 
     @Resource
     private BaseWebSocketClient baseWebSocketClient;
@@ -43,8 +47,25 @@ public class MarketService {
     }
 
     public Mono<RealTimePriceData> getRealTimePrice(String symbol) {
+        // Subscribe to price updates
         Sinks.Many<EventPriceData> priceSink = priceWebSocketService.subscribeToPriceUpdates(symbol);
-        return stockHttpClient.getRealTimePrice(symbol);
+        
+        // Set up logging for price updates
+        priceSink.asFlux()
+            .doOnSubscribe(sub -> log.info("Subscribed to price updates for {}", symbol))
+            .doOnNext(eventPriceData -> {
+                log.info("Received price update for {}: Price={}, Timestamp={}", 
+                    eventPriceData.getSymbol(),
+                    eventPriceData.getPrice(),
+                    eventPriceData.getTimestamp());
+            })
+            .doOnError(error -> log.error("Error receiving price updates for {}: {}", symbol, error.getMessage()))
+            .subscribe();
+
+        // Get initial price and maintain the subscription
+        return stockHttpClient.getRealTimePrice(symbol)
+            .doOnSuccess(priceData -> log.info("Initial price for {}: {}", symbol, priceData.getPrice()))
+            .doOnError(error -> log.error("Error getting initial price for {}: {}", symbol, error.getMessage()));
     }
 
     public Mono<StockProfile> getStockProfile(String symbol) {
