@@ -1,73 +1,49 @@
 package com.stockmarkettracker.stockservice.handler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.stockmarkettracker.stockservice.data.EventPriceData;
-import com.stockmarkettracker.stockservice.service.PriceWebSocketService;
+import com.stockmarkettracker.stockservice.data.RealTimePriceData;
+import com.stockmarkettracker.stockservice.service.MarketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import reactor.core.publisher.Flux;
+import java.time.Duration;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ReactiveWebSocketHandler implements WebSocketHandler {
-    private final PriceWebSocketService priceWebSocketService;
+    private final MarketService marketService;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
-        String sessionId = session.getId();
-        sessions.put(sessionId, session);
-        log.info("New WebSocket connection established: {}", sessionId);
-
-        // Handle incoming messages (subscription requests)
-        Mono<Void> input = session.receive()
-                .doOnSubscribe(sub -> log.info("Subscribed to receive messages for session: {}", sessionId))
-                .doOnNext(message -> {
-                    try {
-                        String symbol = message.getPayloadAsText();
-                        log.info("Received subscription request for symbol: {} from session: {}", symbol, sessionId);
-                        
-                        // Subscribe to price updates for this symbol
-                        priceWebSocketService.subscribeToPriceUpdates(symbol)
-                            .asFlux()
-                            .doOnNext(priceData -> {
+        return session.receive()
+                .doOnSubscribe(sub -> log.info("New WebSocket connection established: {}", session.getId()))
+                .flatMap(message -> {
+                    String symbol = message.getPayloadAsText();
+                    log.info("Received subscription request for symbol: {}", symbol);
+                    
+                    // Create a flux that emits price updates every 5 seconds
+                    return Flux.interval(Duration.ofSeconds(5))
+                            .flatMap(tick -> marketService.getRealTimePrice(symbol))
+                            .flatMap(priceData -> {
                                 try {
                                     String priceUpdate = objectMapper.writeValueAsString(priceData);
-                                    session.send(Mono.just(session.textMessage(priceUpdate)))
-                                        .subscribe(
-                                            null,
-                                            error -> log.error("Error sending price update to session {}: {}", sessionId, error.getMessage())
-                                        );
+                                    return session.send(Mono.just(session.textMessage(priceUpdate)));
                                 } catch (Exception e) {
-                                    log.error("Error serializing price update for session {}: {}", sessionId, e.getMessage());
+                                    log.error("Error serializing price update: {}", e.getMessage());
+                                    return Mono.empty();
                                 }
                             })
-                            .doOnError(error -> log.error("Error in price update stream for session {}: {}", sessionId, error.getMessage()))
-                            .subscribe();
-                    } catch (Exception e) {
-                        log.error("Error processing message from session {}: {}", sessionId, e.getMessage());
-                    }
+                            .doOnError(error -> log.error("Error in price update stream: {}", error.getMessage()))
+                            .then();
                 })
-                .doOnError(error -> log.error("Error in WebSocket receive for session {}: {}", sessionId, error.getMessage()))
+                .doOnError(error -> log.error("WebSocket error: {}", error.getMessage()))
                 .then();
-
-        // Handle session closure
-        Mono<Void> output = session.send(Flux.never())
-                .doOnTerminate(() -> {
-                    log.info("WebSocket session closed: {}", sessionId);
-                    sessions.remove(sessionId);
-                });
-
-        return Mono.zip(input, output).then();
     }
 }

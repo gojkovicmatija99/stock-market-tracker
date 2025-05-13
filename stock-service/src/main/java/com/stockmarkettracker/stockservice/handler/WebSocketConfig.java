@@ -17,10 +17,7 @@ public class WebSocketConfig {
     @Bean
     public HandlerMapping webSocketMapping(ReactiveWebSocketHandler webSocketHandler) {
         Map<String, WebSocketHandler> urlMap = Map.of(
-            "/ws", webSocketHandler,
-            "/ws/stock", webSocketHandler,
-            "/api/ws", webSocketHandler,
-            "/api/ws/stock", webSocketHandler
+            "/ws/stock", webSocketHandler
         );
         return new SimpleUrlHandlerMapping(urlMap, -1);
     }

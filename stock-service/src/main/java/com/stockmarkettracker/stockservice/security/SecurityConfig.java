@@ -23,7 +23,7 @@ public class SecurityConfig {
                 .cors().configurationSource(corsConfigurationSource())  // Explicitly set the CORS configuration source
                 .and()
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/ws/**", "/ws/**").permitAll()  // Allow WebSocket endpoints without authentication
+                        .pathMatchers("/ws/**").permitAll()  // Allow all WebSocket endpoints
                         .anyExchange().authenticated()  // Require authentication for all other exchanges
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)));  // JWT-based OAuth2 Resource Server
