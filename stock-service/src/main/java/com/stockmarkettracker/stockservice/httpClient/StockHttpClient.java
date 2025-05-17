@@ -82,7 +82,10 @@ public class StockHttpClient {
                        return error;
                    }
 
-                    return Mono.just(RealTimePriceData.builder().price(priceData.getPrice()).build());
+                    return Mono.just(RealTimePriceData.builder()
+                            .symbol(symbol)
+                            .price(priceData.getPrice())
+                            .build());
                 })
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
                         .filter(throwable -> throwable instanceof LimitExceededException));

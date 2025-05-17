@@ -11,5 +11,6 @@ import lombok.*;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RealTimePriceData extends ApiResponseData {
+    private String symbol;
     private Double price;
 }

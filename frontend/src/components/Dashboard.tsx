@@ -15,6 +15,7 @@ import {
   Legend,
   ChartOptions
 } from 'chart.js';
+import { StockWebSocketClient } from '../services/StockWebSocketClient';
 
 // Register ChartJS components
 ChartJS.register(
@@ -92,6 +93,9 @@ const Dashboard = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedSymbol, setSelectedSymbol] = useState<string>('AAPL');
   const [symbols, setSymbols] = useState<Stock[]>([]);
+  const [livePrices, setLivePrices] = useState<Record<string, number>>({});
+  const [wsClient] = useState(() => new StockWebSocketClient());
+  const [isConnected, setIsConnected] = useState(false);
 
   const accountSummary: AccountSummary = {
     accountId: 'U12670526',
@@ -117,6 +121,44 @@ const Dashboard = () => {
     authService.logout();
     navigate('/login');
   };
+
+  // Set up WebSocket connection
+  useEffect(() => {
+    const setupWebSocket = async () => {
+      try {
+        await wsClient.connect();
+      } catch (error) {
+        console.error('Error connecting to WebSocket:', error);
+      }
+    };
+
+    setupWebSocket();
+
+    // Subscribe to connection status changes
+    wsClient.onConnectionChange(setIsConnected);
+
+    // Handle price updates
+    wsClient.onPriceUpdate((symbol: string, price: number) => {
+      setLivePrices(prev => ({
+        ...prev,
+        [symbol]: price
+      }));
+    });
+
+    // Cleanup on unmount
+    return () => {
+      wsClient.disconnect();
+    };
+  }, [wsClient]);
+
+  // Subscribe to portfolio symbols when portfolio changes
+  useEffect(() => {
+    if (portfolio?.holdingList) {
+      portfolio.holdingList.forEach(holding => {
+        wsClient.subscribe(holding.symbol);
+      });
+    }
+  }, [portfolio, wsClient]);
 
   // Fetch initial symbols
   useEffect(() => {
