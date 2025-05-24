@@ -12,17 +12,13 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.text.SimpleDateFormat;
-import java.text.ParseException;
 
 @Service
 public class PortfolioService {
-
-    // TODO: Make this dynamic based on the interval
-    public static final int MAX_HISTORY_POINTS = 10;
-
     @Resource
     private AuthHttpClient authHttpClient;
 
@@ -86,87 +82,51 @@ public class PortfolioService {
                     List<Transaction> transactions = tuple.getT1();
                     Map<String, TimeSeriesData> timeSeriesDataMap = tuple.getT2();
 
-                    // Log the contents of timeSeriesDataMap
-                    System.out.println("TimeSeriesDataMap contents:");
-                    int commonTimeSeriesSize = Integer.MAX_VALUE;
-                    for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
-                        String symbol = entry.getKey();
-                        TimeSeriesData data = entry.getValue();
-                        System.out.println("Symbol: " + symbol + ", TimeSeriesData: " + (data != null ? "Present" : "Null"));
-                        if (data != null) {
-                            System.out.println("Values: " + data.getValues());
-                            commonTimeSeriesSize = Math.min(commonTimeSeriesSize, data.getValues().size());
-                        }
-                    }
-                    System.out.println("Common time series size: " + commonTimeSeriesSize);
+                    Integer commonTimeSeriesSize = getCommonTimeSeriesSize(timeSeriesDataMap);
                     Map<String, List<Transaction>> groupedBySymbol = groupTransactionsBySymbol(transactions);
 
                     List<Portfolio> portfolioList = new ArrayList<>();
-                    if (commonTimeSeriesSize == Integer.MAX_VALUE) {
+                    if (commonTimeSeriesSize == null) {
                         return Flux.empty();
                     }
                     for (int i = 0; i < commonTimeSeriesSize; i++) {
                         Portfolio portfolio = new Portfolio();
                         Map<String, Holding> holdingsMap = new HashMap<>();
                         String portfolioDateTime = null;
-                        
+
                         for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
                             String symbol = entry.getKey();
                             TimeSeriesData timeSeriesData = entry.getValue();
 
-                            // Log the symbol and whether the timeSeriesData is null
-                            System.out.println("Symbol: " + symbol + ", TimeSeriesData: " + (timeSeriesData != null ? "Present" : "Null"));
-
-                            if (groupedBySymbol.containsKey(symbol)) {
-                                if (timeSeriesData != null && timeSeriesData.getValues() != null && !timeSeriesData.getValues().isEmpty()) {
-                                    // Set the datetime from the first valid time series data
-                                    if (portfolioDateTime == null) {
-                                        String datetimeStr = timeSeriesData.getValues().get(i).getDatetime().replace(" ", "T");
-                                        portfolioDateTime = datetimeStr;
-                                    }
-                                    
-                                    double totalAmount = 0;
-                                    double totalPrice = 0;
-                                    SimpleDateFormat dateFormatWithTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
-                                    SimpleDateFormat dateFormatWithoutTime = new SimpleDateFormat("yyyy-MM-dd");
-                                    Date portfolioDate;
-                                    try {
-                                        try {
-                                            portfolioDate = dateFormatWithTime.parse(portfolioDateTime);
-                                        } catch (ParseException e) {
-                                            // If parsing with time fails, try without time
-                                            portfolioDate = dateFormatWithoutTime.parse(portfolioDateTime);
-                                        }
-                                    } catch (ParseException e) {
-                                        throw new RuntimeException("Failed to parse date: " + portfolioDateTime, e);
-                                    }
-                                    for (Transaction transaction : groupedBySymbol.get(symbol)) {
-                                        // Only consider transactions that occurred before or at the current portfolio date
-                                        if (transaction.getDate().after(portfolioDate)) {
-                                            continue;
-                                        }
-
-                                        if (transaction.getType() == TransactionType.BUY) {
-                                            totalAmount += transaction.getAmount();
-                                            totalPrice += transaction.getAmount() * transaction.getPrice();
-                                        } else if (transaction.getType() == TransactionType.SELL) {
-                                            totalAmount -= transaction.getAmount();
-                                            totalPrice -= transaction.getAmount() * transaction.getPrice();
-                                        }
-                                    }
-
-                                    double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
-                                    double historicalPrice = Double.parseDouble(timeSeriesData.getValues().get(i).getOpen());
-                                    // Always add the holding, even if totalAmount is 0
-                                    holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
-                                } else {
-                                    System.out.println("No time series data available for symbol: " + symbol);
-                                }
-                            } else {
-                                System.out.println("Symbol not found in grouped transactions: " + symbol);
+                            if (!groupedBySymbol.containsKey(symbol)) {
+                                continue;
                             }
+                            if (timeSeriesData == null || timeSeriesData.getValues() == null || timeSeriesData.getValues().isEmpty()) {
+                                continue;
+                            }
+
+                            if (portfolioDateTime == null) {
+                                portfolioDateTime = timeSeriesData.getValues().get(i).getDatetime().replace(" ", "T");
+                            }
+
+                            Date portfolioDate = getDate(portfolioDateTime);
+                            List<Transaction> up2dateTransactions = groupedBySymbol.get(symbol).stream().filter(t -> !t.getDate().after(portfolioDate)).toList();
+
+                            double totalAmount = up2dateTransactions.stream()
+                                    .mapToDouble(t -> t.getType() == TransactionType.BUY ? t.getAmount() : -t.getAmount())
+                                    .sum();
+
+                            double totalPrice = up2dateTransactions.stream()
+                                    .mapToDouble(t -> t.getType() == TransactionType.BUY
+                                            ? t.getAmount() * t.getPrice()
+                                            : -t.getAmount() * t.getPrice())
+                                    .sum();
+
+                            double averagePrice = totalAmount != 0 ? totalPrice / totalAmount : 0;
+                            double historicalPrice = Double.parseDouble(timeSeriesData.getValues().get(i).getOpen());
+                            holdingsMap.put(symbol, new Holding(symbol, totalAmount, averagePrice, historicalPrice));
                         }
-                        
+
                         portfolio.setDatetime(portfolioDateTime);
                         portfolio.setHoldingList(new ArrayList<>(holdingsMap.values()));
                         portfolio.setTotalProfitLoss(holdingsMap.values().stream().mapToDouble(Holding::getProfitLoss).sum());
@@ -175,6 +135,36 @@ public class PortfolioService {
 
                     return Flux.fromIterable(portfolioList);
                 });
+    }
+
+    private Integer getCommonTimeSeriesSize(Map<String, TimeSeriesData> timeSeriesDataMap) {
+        Integer commonTimeSeriesSize = null;
+        for (Map.Entry<String, TimeSeriesData> entry : timeSeriesDataMap.entrySet()) {
+            String symbol = entry.getKey();
+            TimeSeriesData data = entry.getValue();
+            if (data != null) {
+                commonTimeSeriesSize = commonTimeSeriesSize == null ? Integer.MAX_VALUE : commonTimeSeriesSize;
+                commonTimeSeriesSize = Math.min(commonTimeSeriesSize, data.getValues().size());
+            }
+        }
+
+        return commonTimeSeriesSize;
+    }
+
+    private static Date getDate(String portfolioDateTime) {
+        SimpleDateFormat dateFormatWithTime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        SimpleDateFormat dateFormatWithoutTime = new SimpleDateFormat("yyyy-MM-dd");
+        Date portfolioDate;
+        try {
+            try {
+                portfolioDate = dateFormatWithTime.parse(portfolioDateTime);
+            } catch (ParseException e) {
+                portfolioDate = dateFormatWithoutTime.parse(portfolioDateTime);
+            }
+        } catch (ParseException e) {
+            throw new RuntimeException("Failed to parse date: " + portfolioDateTime, e);
+        }
+        return portfolioDate;
     }
 
     private Map<String, List<Transaction>> groupTransactionsBySymbol(List<Transaction> transactions) {
@@ -186,7 +176,7 @@ public class PortfolioService {
         return holdings.map(Holding::getProfitLoss).reduce(0.0, Double::sum);
     }
 
-    public  Mono<Double> calculateTotalPrice(Flux<Holding> holdings) {
+    public Mono<Double> calculateTotalPrice(Flux<Holding> holdings) {
         return holdings.map(Holding::getProfitLoss).reduce(0.0, Double::sum);
     }
 
