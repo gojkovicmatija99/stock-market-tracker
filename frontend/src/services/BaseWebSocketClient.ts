@@ -1,5 +1,5 @@
 export class BaseWebSocketClient {
-    private ws: WebSocket | null = null;
+    protected ws: WebSocket | null = null;
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
     private reconnectTimeout = 1000; // 1 second
@@ -17,8 +17,12 @@ export class BaseWebSocketClient {
         this.url = url;
     }
 
-    protected setWebSocket(ws: WebSocket) {
+    public setWebSocket(ws: WebSocket) {
         this.ws = ws;
+    }
+
+    getWebSocket(): WebSocket | null {
+        return this.ws;
     }
 
     async connect() {

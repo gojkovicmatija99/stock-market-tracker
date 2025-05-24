@@ -30,12 +30,20 @@ export class StockWebSocketClient extends BaseWebSocketClient {
         }
     }
 
+    getWebSocket(): WebSocket | null {
+        return this.ws;
+    }
+
     subscribe(symbol: string) {
-        this.send('subscribe', { symbol });
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(symbol);
+        }
     }
 
     unsubscribe(symbol: string) {
-        this.send('unsubscribe', { symbol });
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'unsubscribe', symbol }));
+        }
     }
 
     onPriceUpdate(callback: (symbol: string, price: number) => void) {

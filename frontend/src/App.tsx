@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocat
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Stock from './components/Stock';
-import WebSocketTest from './components/WebSocketTest';
 import { authService } from './services/authService';
 
 // Protected Route wrapper component
@@ -75,7 +74,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/ws-test" element={<WebSocketTest />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

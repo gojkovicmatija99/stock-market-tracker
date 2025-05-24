@@ -82,6 +82,12 @@ interface Stock {
   type: string;
 }
 
+interface PriceUpdate {
+  symbol: string;
+  price: number;
+  timestamp: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState<'Dashboard' | 'Positions' | 'Performance' | 'Balances' | 'Portfolio News'>('Dashboard');
@@ -96,6 +102,7 @@ const Dashboard = () => {
   const [livePrices, setLivePrices] = useState<Record<string, number>>({});
   const [wsClient] = useState(() => new StockWebSocketClient());
   const [isConnected, setIsConnected] = useState(false);
+  const [priceUpdates, setPriceUpdates] = useState<Record<string, PriceUpdate>>({});
 
   const accountSummary: AccountSummary = {
     accountId: 'U12670526',
@@ -126,7 +133,53 @@ const Dashboard = () => {
   useEffect(() => {
     const setupWebSocket = async () => {
       try {
-        await wsClient.connect();
+        const websocket = new WebSocket('ws://localhost:8082/ws/stock');
+        
+        websocket.onopen = () => {
+          setIsConnected(true);
+          
+          // Subscribe to portfolio symbols when connected
+          if (portfolio?.holdingList) {
+            portfolio.holdingList.forEach(holding => {
+              websocket.send(holding.symbol);
+            });
+          }
+        };
+
+        websocket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            
+            // Update price data for display
+            setPriceUpdates(prev => ({
+              ...prev,
+              [data.symbol]: {
+                symbol: data.symbol,
+                price: data.price,
+                timestamp: new Date().toISOString()
+              }
+            }));
+
+            // Update live prices
+            setLivePrices(prev => ({
+              ...prev,
+              [data.symbol]: data.price
+            }));
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+
+        websocket.onerror = (error) => {
+          console.error('WebSocket error:', error);
+        };
+
+        websocket.onclose = () => {
+          setIsConnected(false);
+        };
+
+        // Store WebSocket instance
+        wsClient.setWebSocket(websocket);
       } catch (error) {
         console.error('Error connecting to WebSocket:', error);
       }
@@ -134,31 +187,13 @@ const Dashboard = () => {
 
     setupWebSocket();
 
-    // Subscribe to connection status changes
-    wsClient.onConnectionChange(setIsConnected);
-
-    // Handle price updates
-    wsClient.onPriceUpdate((symbol: string, price: number) => {
-      setLivePrices(prev => ({
-        ...prev,
-        [symbol]: price
-      }));
-    });
-
     // Cleanup on unmount
     return () => {
-      wsClient.disconnect();
+      if (wsClient) {
+        wsClient.disconnect();
+      }
     };
-  }, [wsClient]);
-
-  // Subscribe to portfolio symbols when portfolio changes
-  useEffect(() => {
-    if (portfolio?.holdingList) {
-      portfolio.holdingList.forEach(holding => {
-        wsClient.subscribe(holding.symbol);
-      });
-    }
-  }, [portfolio, wsClient]);
+  }, [wsClient, portfolio]);
 
   // Fetch initial symbols
   useEffect(() => {
@@ -493,6 +528,22 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Price Updates Display */}
+                <div className="mb-8">
+                  <h2 className="text-2xl font-bold mb-4 text-tradingview-text">Live Price Updates</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(priceUpdates).map(([symbol, update]) => (
+                      <div key={symbol} className="border rounded p-4 bg-tradingview-bg border-tradingview-border">
+                        <h3 className="font-bold text-lg text-tradingview-text">{symbol}</h3>
+                        <p className="text-xl text-tradingview-text">${update.price.toFixed(2)}</p>
+                        <p className="text-sm text-tradingview-text/60">
+                          Last update: {new Date(update.timestamp).toLocaleTimeString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -502,4 +553,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;
