@@ -1,202 +1,88 @@
-# Stock Market Tracker - Technical Documentation
+# Implementation of Reactive Patterns in Microservices Architecture: Stock Market Tracker
 
-## Thesis Project: Implementation of Reactive Pattern in Microservices Architecture
+## Introduction
 
-This project demonstrates the implementation of reactive programming patterns in a microservices architecture for a stock market tracking application. The system showcases how reactive streams can be used to handle concurrent requests across multiple microservices efficiently.
+In the era of digital transformation, the demand for scalable, responsive, and resilient software systems is greater than ever. Financial applications, such as stock market trackers, require the ability to process and deliver real-time data to users while maintaining high availability and efficient resource utilization. Traditional monolithic and synchronous architectures often struggle to meet these requirements, especially under high load or when integrating with multiple external data sources.
 
-## System Architecture
+This bachelor thesis explores the application of **reactive programming** within a **microservices architecture** by developing a real-world stock market tracking application. The project demonstrates how reactive patterns—implemented using **Project Reactor** and **Spring WebFlux**—can address the challenges of modern distributed systems, particularly in the context of real-time financial data processing.
 
-### 1. Authentication Service (Auth-Service)
-#### REST Endpoints
-- `POST /auth/register`
-  - Purpose: User registration
-  - Request Body:
-  ```json
-  {
-    "username": "user@example.com",
-    "password": "password",
-    "firstName": "John",
-    "lastName": "Doe"
-  }
+## Motivation and Problem Statement
+
+The stock market is a dynamic environment where prices and portfolio values change rapidly. Users expect instant updates, seamless user experience, and robust error handling. However, integrating multiple data sources, handling concurrent user requests, and ensuring system responsiveness can be challenging with traditional programming models.
+
+**Reactive programming** offers a paradigm shift by enabling asynchronous, non-blocking, and event-driven processing. When combined with a **microservices architecture**, it allows for the decomposition of complex systems into independently deployable, scalable, and maintainable services.
+
+## Research Objectives
+
+The main objectives of this thesis are:
+- To investigate the benefits and challenges of reactive programming in microservices-based systems.
+- To design and implement a stock market tracker using reactive patterns and microservices.
+- To evaluate the system's responsiveness, scalability, and resource efficiency.
+- To document best practices and lessons learned for future research and development.
+
+## Methodology
+
+The research is conducted through the practical implementation of a stock market tracking application, which includes:
+- Designing a microservices architecture with clear service boundaries.
+- Implementing reactive REST APIs and WebSocket endpoints using Spring WebFlux and Project Reactor.
+- Integrating external financial data providers for real-time stock prices.
+- Developing a modern frontend with React and WebSocket clients for live updates.
+- Containerizing all services and orchestrating them with Docker Compose.
+- Measuring and analyzing system performance under various load scenarios.
+
+## System Overview
+
+The Stock Market Tracker consists of the following microservices:
+
+1. **Authentication Service**  
+   Handles user registration, login, and JWT-based authentication.
+
+2. **Stock Service**  
+   Provides real-time and historical stock data, including a reactive WebSocket for live price updates.
+
+3. **Portfolio Service**  
+   Enables users to manage their stock portfolios, track positions, and view historical performance.
+
+Each service is developed using reactive programming principles, ensuring non-blocking I/O, efficient resource usage, and high scalability.
+
+---
+
+## Application Screenshots
+
+### Dashboard
+
+![Dashboard Screenshot](./dashboard.png)
+
+### Stock Details
+
+![Stock Details Screenshot](./stock.png)
+
+## Key Concepts: Mono and Flux
+
+- **Mono**: Represents a stream of 0 or 1 element. Used for single-result operations, such as fetching a user profile or a stock's current price.
+  ```java
+  Mono<StockInfo> getStockInfo(String symbol) { ... }
+  ```
+- **Flux**: Represents a stream of 0 to N elements. Used for multiple results or continuous data, such as streaming price updates.
+  ```java
+  Flux<PriceUpdate> streamPriceUpdates(String symbol) { ... }
   ```
 
-- `POST /auth/login`
-  - Purpose: User authentication
-  - Request Body:
-  ```json
-  {
-    "username": "user@example.com",
-    "password": "password"
-  }
-  ```
-  - Response: JWT token
+## Why Reactive Microservices?
 
-- `POST /auth/validate`
-  - Purpose: JWT token validation
-  - Authentication: JWT Bearer Token
+- **Responsiveness**: Users receive updates instantly, even under heavy load.
+- **Scalability**: The system can handle thousands of concurrent connections with minimal threads.
+- **Resilience**: Failures in one service do not cascade, and errors are handled gracefully.
+- **Resource Efficiency**: Non-blocking I/O and backpressure management prevent resource exhaustion.
 
-### 2. User Service (User-Service)
-#### REST Endpoints
-- `GET /users/{userId}`
-  - Purpose: Retrieve user profile
-  - Authentication: JWT Bearer Token
+## Structure of the Thesis
 
-- `PUT /users/{userId}`
-  - Purpose: Update user profile
-  - Authentication: JWT Bearer Token
+1. **Theoretical Background**: Introduction to reactive programming and microservices.
+2. **System Design**: Architectural decisions, service boundaries, and technology stack.
+3. **Implementation**: Code examples, API design, and integration patterns.
+4. **Evaluation**: Performance benchmarks and analysis.
+5. **Conclusion**: Key findings, challenges, and future work.
 
-- `DELETE /users/{userId}`
-  - Purpose: Delete user profile
-  - Authentication: JWT Bearer Token
+## Conclusion
 
-### 3. Stock Service (Stock-Service)
-#### WebSocket Endpoints
-- `ws://localhost:8082/ws/stock`
-  - Purpose: Real-time stock price streaming
-  - Protocol: WebSocket
-  - Authentication: JWT Bearer Token
-  - Message Format:
-  ```json
-  {
-    "symbol": "AAPL",
-    "price": 150.25,
-    "timestamp": "2024-03-20T10:30:00Z"
-  }
-  ```
-
-#### REST Endpoints
-- `GET /stocks`
-  - Purpose: Search available stocks
-  - Authentication: JWT Bearer Token
-
-- `GET /stocks/{symbol}`
-  - Purpose: Get stock details
-  - Authentication: JWT Bearer Token
-
-### 4. Portfolio Service (Portfolio-Service)
-#### REST Endpoints
-- `GET /portfolio`
-  - Purpose: Get current portfolio state
-  - Authentication: JWT Bearer Token
-
-- `POST /portfolio/stocks`
-  - Purpose: Add stock to portfolio
-  - Authentication: JWT Bearer Token
-
-- `DELETE /portfolio/stocks/{symbol}`
-  - Purpose: Remove stock from portfolio
-  - Authentication: JWT Bearer Token
-
-- `GET /portfolio/history`
-  - Purpose: Get portfolio historical data
-  - Parameters:
-    - `interval`: Time interval (1min to 1month)
-  - Authentication: JWT Bearer Token
-
-### 5. Notification Service (Notification-Service)
-#### REST Endpoints
-- `POST /notifications`
-  - Purpose: Send notification
-  - Authentication: JWT Bearer Token
-  - Request Body:
-  ```json
-  {
-    "userId": "user123",
-    "type": "PORTFOLIO_UPDATE",
-    "message": "Your portfolio value has changed",
-    "channel": "EMAIL"
-  }
-  ```
-
-## Reactive Flow Example
-
-### Stock Details Request Flow
-1. Client sends request for stock details
-2. API Gateway receives request and initiates reactive calls
-3. Parallel execution:
-   - Auth-Service validates JWT token
-   - Stock-Service fetches stock information
-   - Portfolio-Service retrieves user's position
-4. Results are combined and returned to client
-
-## Technical Implementation
-
-### Backend Services
-- Java 17+
-- Spring WebFlux
-- Project Reactor
-- R2DBC for reactive database access
-- JWT authentication
-- WebSocket support
-
-### Frontend
-- React 18+
-- TypeScript 5+
-- Chart.js 4+
-- Tailwind CSS 3+
-- WebSocket client
-
-## Development Setup
-
-### Docker Compose
-```yaml
-version: '3.8'
-services:
-  auth-service:
-    build: ./auth-service
-    ports:
-      - "8081:8081"
-  
-  user-service:
-    build: ./user-service
-    ports:
-      - "8082:8082"
-  
-  stock-service:
-    build: ./stock-service
-    ports:
-      - "8083:8083"
-  
-  portfolio-service:
-    build: ./portfolio-service
-    ports:
-      - "8084:8084"
-  
-  notification-service:
-    build: ./notification-service
-    ports:
-      - "8085:8085"
-  
-  api-gateway:
-    build: ./api-gateway
-    ports:
-      - "8080:8080"
-```
-
-## Performance Considerations
-
-### Reactive Streams
-- Non-blocking I/O operations
-- Backpressure handling
-- Efficient resource utilization
-- Scalable request processing
-
-### Microservices Communication
-- Event-driven architecture
-- Message queues for async communication
-- Circuit breaker pattern
-- Retry mechanisms
-
-## Monitoring and Logging
-
-### Backend Services
-- Reactive metrics collection
-- Distributed tracing
-- Error logging
-- Performance monitoring
-
-### Frontend
-- Console logging
-- Error boundaries
-- Performance monitoring
-- WebSocket connection status 
+This project serves as a practical demonstration of how reactive programming and microservices can be combined to build modern, high-performance applications. The Stock Market Tracker not only meets the technical requirements of real-time financial systems but also provides a foundation for further research and development in the field of reactive distributed systems. 
