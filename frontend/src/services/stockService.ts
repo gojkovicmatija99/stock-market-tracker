@@ -108,7 +108,7 @@ class StockService {
       }
 
       const data = await response.json();
-      return data;
+      return data[0];
     } catch (error) {
       console.error('Error fetching stock info:', error);
       throw error;

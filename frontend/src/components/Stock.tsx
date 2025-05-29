@@ -239,7 +239,7 @@ const Stock = () => {
           return;
         }
 
-        const response = await fetch('http://localhost:8082/market/stocks', {
+        const response = await fetch(`http://localhost:8082/market/stocks/${symbol}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ const Stock = () => {
     };
 
     fetchSymbols();
-  }, [navigate]);
+  }, [navigate, symbol]);
 
   const handleIntervalChange = async (newInterval: TimeInterval) => {
     setIsLoading(true);
