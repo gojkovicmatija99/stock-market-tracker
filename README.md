@@ -1,9 +1,5 @@
 # Implementation of Reactive Patterns in Microservices Architecture: Stock Market Tracker
 
-## Introduction
-
-In the era of digital transformation, the demand for scalable, responsive, and resilient software systems is greater than ever. Financial applications, such as stock market trackers, require the ability to process and deliver real-time data to users while maintaining high availability and efficient resource utilization. Traditional monolithic and synchronous architectures often struggle to meet these requirements, especially under high load or when integrating with multiple external data sources.
-
 This bachelor thesis explores the application of **reactive programming** within a **microservices architecture** by developing a real-world stock market tracking application. The project demonstrates how reactive patterns—implemented using **Project Reactor** and **Spring WebFlux**—can address the challenges of modern distributed systems, particularly in the context of real-time financial data processing.
 
 ## Motivation and Problem Statement
